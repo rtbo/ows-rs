@@ -20,9 +20,12 @@ fn main() {
     {
         let mut w = p.window_mut(wid);
         let mut attempts = 0;
-        w.on_close_do(Box::new(move || {
+        w.on_close_do(Box::new(move |_| {
             attempts += 1;
             attempts == 2
+        }));
+        w.on_resize_add(Box::new(|w, s| {
+            w.set_title(format!("Hello, World; new size: {:?}", s));
         }));
     }
 

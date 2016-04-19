@@ -1,5 +1,9 @@
 
 use geometry::ISize;
+use ::RcCell;
+
+use std::rc::Rc;
+use std::cell::RefCell;
 
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -43,33 +47,50 @@ pub trait Window {
     fn set_state(&mut self, state: State);
 
 
-    fn on_close_do(&mut self, handler: Box<FnMut() -> bool>) {
-        self.on_close_mut().set(Some(handler));
+    fn on_close_do(&mut self, handler: Box<FnMut(&mut Window) -> bool>) {
+        let hdler = self.on_close();
+        hdler.borrow_mut().set(Some(handler));
     }
-    fn on_close(&self) -> &OnCloseHandler {
-        &self.base().on_close
+    fn on_close_do_nothing(&mut self) {
+        let hdler = self.on_close();
+        hdler.borrow_mut().set(None);
     }
-    fn on_close_mut(&mut self) -> &mut OnCloseHandler {
-        &mut self.base_mut().on_close
+    fn on_close(&self) -> RcCell<OnCloseHandler> {
+        self.base().on_close.clone()
+    }
+
+
+    fn on_resize_add(&mut self, handler: Box<FnMut(&mut Window, ISize)>) -> usize {
+        let hdler = self.on_resize();
+        let id = hdler.borrow_mut().add(handler);
+        id
+    }
+    fn on_resize_rem(&mut self, id: usize) -> bool {
+        let hdler = self.on_resize();
+        let res = hdler.borrow_mut().remove(id);
+        res
+    }
+    fn on_resize(&self) -> RcCell<OnResizeHandler> {
+        self.base().on_resize.clone()
     }
 
 }
 
 
-define_handler!{OnCloseHandler () => bool}
-define_handler!{OnResizeHandler (new_size: ISize)}
+define_handler!{OnCloseHandler (w: &mut Window) => bool}
+define_handler!{OnResizeHandler (w: &mut Window, new_size: ISize)}
 
 
 pub struct WindowBase {
-    on_close: OnCloseHandler,
-    on_resize: OnResizeHandler,
+    on_close: RcCell<OnCloseHandler>,
+    on_resize: RcCell<OnResizeHandler>,
 }
 
 impl WindowBase {
     pub fn new() -> WindowBase {
         WindowBase {
-            on_close: OnCloseHandler::new(),
-            on_resize: OnResizeHandler::new(),
+            on_close: Rc::new(RefCell::new(OnCloseHandler::new())),
+            on_resize: Rc::new(RefCell::new(OnResizeHandler::new())),
         }
     }
 }

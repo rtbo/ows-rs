@@ -174,9 +174,11 @@ impl XcbPlatform {
             let protocol = ev.data().data32()[0];
             if protocol == wm_delete_window {
                 let close_window = {
-                    self.window_mut(xcb_to_wid(ev.window()))
-                        .on_close_mut()
-                        .fire_or(true)
+                    let w = self.window_mut(xcb_to_wid(ev.window()));
+                    let handler = w.on_close();
+                    let cw = handler.borrow_mut()
+                        .fire_or(true, w);
+                    cw
                 };
                 if close_window {
                     // on_close was not set or returned true
@@ -188,6 +190,10 @@ impl XcbPlatform {
                 }
             }
         }
+    }
+
+    fn handle_configure_notify(&mut self, ev: &xcb::ConfigureNotifyEvent) {
+        self.xcb_win_mut(ev.event()).handle_configure_notify(&ev);
     }
 }
 
@@ -215,6 +221,9 @@ impl EventLoop for XcbPlatform {
             match r {
                 xcb::CLIENT_MESSAGE => {
                     self.handle_client_message(xcb::cast_event(&ev));
+                },
+                xcb::CONFIGURE_NOTIFY => {
+                    self.handle_configure_notify(xcb::cast_event(&ev));
                 },
                 _ => {}
             }
@@ -325,6 +334,24 @@ impl XcbWindow {
     }
 
     fn created(&self) -> bool { self.created }
+
+    fn handle_configure_notify(&mut self, ev: &xcb::ConfigureNotifyEvent) {
+        debug_assert!(self.created());
+
+        let new_pos = self.get_position_sys().unwrap_or(
+            IPoint::new(ev.x() as i32, ev.y() as i32)
+        );
+        if new_pos != self.rect.point() {
+        }
+
+        let new_size = ISize::new(ev.width() as i32, ev.height() as i32);
+        if new_size != self.rect.size() {
+            let handler = self.on_resize();
+            handler.borrow_mut().fire(self as &mut Window, new_size);
+        }
+
+        self.rect = IRect::new_ps(new_pos, new_size);
+    }
 
     fn set_title_sys(&self, title: &str) {
         debug_assert!(self.created());
