@@ -1,3 +1,6 @@
+
+#![feature(log_syntax)]
+
 #[cfg(target_os = "windows")]
 extern crate winapi;
 #[cfg(target_os = "windows")]
@@ -17,6 +20,9 @@ extern crate libc;
 #[macro_use]
 extern crate log;
 
+use std::rc::Rc;
+use std::cell::RefCell;
+
 #[macro_use]
 pub mod macros;
 pub mod platform;
@@ -28,6 +34,7 @@ pub mod window;
 pub use platform::*;
 pub use window::Window;
 
+pub type RcCell<T> = Rc<RefCell<T>>;
 
 #[cfg(target_os="linux")]
 pub fn default_platform() -> Option<Box<Platform>> {
