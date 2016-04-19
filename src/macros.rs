@@ -94,7 +94,7 @@ macro_rules! define_handler {
                     (*h)($($pn),*);
                 }
             }
-            fn h_to_id(h: &FnMut($($pt)*,)) -> usize {
+            fn h_to_id(h: &FnMut($($pt),*)) -> usize {
                 // FIXME: make something more robust
                 use std::mem;
                 let hash: (usize, usize) = unsafe { mem::transmute(h) };
