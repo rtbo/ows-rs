@@ -20,12 +20,11 @@ fn main() {
     {
         let mut w = p.window_mut(wid);
         let mut attempts = 0;
-        w.on_close_do(Some(Box::new(move || {
+        w.on_close_do(Box::new(move || {
             attempts += 1;
             attempts == 2
-        })));
+        }));
     }
-
 
     p.window_mut(wid).show_normal();
 

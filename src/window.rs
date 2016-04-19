@@ -1,4 +1,5 @@
 
+use geometry::ISize;
 
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -42,47 +43,33 @@ pub trait Window {
     fn set_state(&mut self, state: State);
 
 
-    fn on_close_do(&mut self, sig: Option<Box<FnMut() -> bool>>) {
-        self.on_close_mut().set(sig);
+    fn on_close_do(&mut self, handler: Box<FnMut() -> bool>) {
+        self.on_close_mut().set(Some(handler));
     }
-    fn on_close(&self) -> &OnCloseSig {
+    fn on_close(&self) -> &OnCloseHandler {
         &self.base().on_close
     }
-    fn on_close_mut(&mut self) -> &mut OnCloseSig {
+    fn on_close_mut(&mut self) -> &mut OnCloseHandler {
         &mut self.base_mut().on_close
     }
+
 }
 
-pub struct OnCloseSig {
-    sig: Option<Box<FnMut() -> bool>>,
-}
 
-impl OnCloseSig {
-    pub fn new() -> OnCloseSig {
-        OnCloseSig { sig: None }
-    }
-    pub fn is_set(&self) -> bool {
-        self.sig.is_some()
-    }
-    pub fn set(&mut self, sig: Option<Box<FnMut() -> bool>>) {
-        self.sig = sig;
-    }
-    pub fn fire(&mut self) -> bool {
-        self.sig.as_mut().map(|sig| (*sig)()).unwrap()
-    }
-    pub fn fire_or(&mut self, def: bool) -> bool {
-        self.sig.as_mut().map_or(def, |sig| (*sig)())
-    }
-}
+define_handler!{OnCloseHandler () => bool}
+define_handler!{OnResizeHandler (new_size: ISize)}
+
 
 pub struct WindowBase {
-    on_close: OnCloseSig,
+    on_close: OnCloseHandler,
+    on_resize: OnResizeHandler,
 }
 
 impl WindowBase {
     pub fn new() -> WindowBase {
         WindowBase {
-            on_close: OnCloseSig::new()
+            on_close: OnCloseHandler::new(),
+            on_resize: OnResizeHandler::new(),
         }
     }
 }
