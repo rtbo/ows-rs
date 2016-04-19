@@ -159,6 +159,13 @@ impl XcbPlatform {
         self.shared_state.atom(atom)
     }
 
+    fn xcb_win(&self, win: xcb::Window) -> &XcbWindow {
+        self.windows.get(&xcb_to_wid(win)).expect("try to access unregistered window")
+    }
+    fn xcb_win_mut(&mut self, win: xcb::Window) -> &mut XcbWindow {
+        self.windows.get_mut(&xcb_to_wid(win)).expect("try to access unregistered window")
+    }
+
     fn handle_client_message(&mut self, ev: &xcb::ClientMessageEvent) {
         let wm_protocols = self.atom(Atom::WM_PROTOCOLS);
         let wm_delete_window = self.atom(Atom::WM_DELETE_WINDOW);
