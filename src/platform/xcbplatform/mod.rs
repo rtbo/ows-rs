@@ -428,6 +428,10 @@ impl Window for XcbWindow {
     }
     fn set_title(&mut self, title: String) {
         self.title = title;
+        if self.created() {
+            self.set_title_sys(&self.title);
+            self.conn().flush();
+        }
     }
     fn state(&self) -> window::State {
         if !self.created() {
