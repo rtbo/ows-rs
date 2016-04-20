@@ -105,13 +105,13 @@ impl<T: Copy> Margins<T> {
 }
 
 
-pub trait HasArea {
+pub trait Area {
     type Output;
 
     fn area(&self) -> Self::Output;
 }
 
-impl<T> HasArea for Size<T>
+impl<T> Area for Size<T>
         where T : Mul<Output=T> + Copy {
     type Output = T;
 
@@ -120,7 +120,7 @@ impl<T> HasArea for Size<T>
     }
 }
 
-impl<T> HasArea for Rect<T>
+impl<T> Area for Rect<T>
         where T : Mul<Output=T> + Copy {
     type Output = T;
 
