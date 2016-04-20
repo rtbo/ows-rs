@@ -2,7 +2,7 @@
 
 #[macro_export]
 macro_rules! define_handler {
-    ($name:ident ($($pn:ident: $pt:ty),*) ) => {
+    ($name:ident : FnMut ($($pn:ident: $pt:ty),*) ) => {
         pub struct $name {
             handlers: Vec<Box<FnMut($($pt),*)>>,
         }
@@ -45,7 +45,7 @@ macro_rules! define_handler {
             }
         }
     };
-    ($name:ident ($($pn:ident: $pt:ty),*) => $ret:ty) => {
+    ($name:ident : FnMut ($($pn:ident: $pt:ty),*) => $ret:ty) => {
         pub struct $name {
             handler: Option<Box<FnMut($($pt),*) -> $ret>>,
         }
@@ -75,7 +75,7 @@ macro_rules! define_handler {
 #[allow(dead_code)]
 mod define_handler_test {
 
-    define_handler!{ Param (n:i32) }
+    define_handler!{ Param: FnMut(n:i32) }
 
     #[test]
     fn param() {
@@ -118,7 +118,7 @@ mod define_handler_test {
     }
 
 
-    define_handler!{ NoParamRet () => i32 }
+    define_handler!{ NoParamRet: FnMut() => i32 }
 
     #[test]
     fn no_param_ret() {
@@ -133,7 +133,7 @@ mod define_handler_test {
     }
 
 
-    define_handler!{ ParamRet (n:i32, s:&str) => String }
+    define_handler!{ ParamRet: FnMut(n:i32, s:&str) => String }
 
     #[test]
     fn param_ret() {

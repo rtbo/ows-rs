@@ -77,8 +77,8 @@ pub trait Window {
 }
 
 
-define_handler!{OnCloseHandler (w: &mut Window) => bool}
-define_handler!{OnResizeHandler (w: &mut Window, new_size: ISize)}
+define_handler!{OnCloseHandler: FnMut(w: &mut Window) => bool}
+define_handler!{OnResizeHandler: FnMut(w: &mut Window, new_size: ISize)}
 
 
 pub struct WindowBase {
