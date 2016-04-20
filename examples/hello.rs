@@ -18,15 +18,15 @@ fn main() {
 
     // alternatively, accessing using "getter" idiom
     {
-        let mut w = p.window_mut(wid);
+        let w = p.window_mut(wid);
         let mut attempts = 0;
-        w.on_close_do(Box::new(move |_| {
+        handler_do!(w.on_close(), move |_| {
             attempts += 1;
             attempts == 2
-        }));
-        w.on_resize_add(Box::new(|w, s| {
+        });
+        handler_add!(w.on_resize(), |w, s| {
             w.set_title(format!("Hello, World; new size: {:?}", s));
-        }));
+        });
     }
 
     p.window_mut(wid).show_normal();

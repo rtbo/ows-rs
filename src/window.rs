@@ -50,32 +50,14 @@ pub trait Window {
     fn set_state(&mut self, state: State);
 
 
-    fn on_close_do(&mut self, handler: Box<FnMut(&mut Window) -> bool>) {
-        let hdler = self.on_close();
-        hdler.borrow_mut().set(Some(handler));
-    }
-    fn on_close_do_nothing(&mut self) {
-        let hdler = self.on_close();
-        hdler.borrow_mut().set(None);
-    }
     fn on_close(&self) -> RcCell<OnCloseHandler> {
         self.base().on_close.clone()
     }
 
-
-    fn on_resize_add(&mut self, handler: Box<FnMut(&mut Window, ISize)>) -> usize {
-        let hdler = self.on_resize();
-        let id = hdler.borrow_mut().add(handler);
-        id
-    }
-    fn on_resize_rem(&mut self, id: usize) -> bool {
-        let hdler = self.on_resize();
-        let res = hdler.borrow_mut().remove(id);
-        res
-    }
     fn on_resize(&self) -> RcCell<OnResizeHandler> {
         self.base().on_resize.clone()
     }
+
 
 }
 
@@ -96,30 +78,69 @@ impl WindowBase {
 
 
 #[macro_export]
-macro_rules! fire {
-    ($hdler:expr, $($p:expr),*) => {{
+macro_rules! handler_do {
+    ($handler:expr, $closure:expr) => {{
         // A lifetime error occurs without this no-op let.
-        let hdler = $hdler;
-        hdler.borrow_mut().fire($($p),*);
+        let handler = $handler;
+        handler.borrow_mut().set(Some(Box::new($closure)));
+    }};
+}
+
+#[macro_export]
+macro_rules! handler_do_nothing {
+    ($handler:expr) => {{
+        // A lifetime error occurs without this no-op let.
+        let handler = $handler;
+        handler.borrow_mut().set(None);
+    }};
+}
+
+#[macro_export]
+macro_rules! handler_add {
+    ($handler:expr, $closure:expr) => {{
+        // A lifetime error occurs without this no-op let.
+        let handler = $handler;
+        let id = handler.borrow_mut().add(Box::new($closure));
+        id
+    }};
+}
+
+#[macro_export]
+macro_rules! handler_rem {
+    ($handler:expr, $id:expr) => {{
+        // A lifetime error occurs without this no-op let.
+        let handler = $handler;
+        let res = handler.borrow_mut().remove($id);
+        res
+    }};
+}
+
+
+#[macro_export]
+macro_rules! fire {
+    ($handler:expr, $($p:expr),*) => {{
+        // A lifetime error occurs without this no-op let.
+        let handler = $handler;
+        handler.borrow_mut().fire($($p),*);
     }};
 }
 
 #[macro_export]
 macro_rules! fire_res {
-    ($hdler:expr, $($p:expr),*) => {{
+    ($handler:expr, $($p:expr),*) => {{
         // A lifetime error occurs without this no-op let.
-        let hdler = $hdler;
-        let res = hdler.borrow_mut().fire($($p),*);
+        let handler = $handler;
+        let res = handler.borrow_mut().fire($($p),*);
         res
     }};
 }
 
 #[macro_export]
 macro_rules! fire_or {
-    ($hdler:expr, $($p:expr),+) => {{
+    ($handler:expr, $($p:expr),+) => {{
         // A lifetime error occurs without this no-op let.
-        let hdler = $hdler;
-        let res = hdler.borrow_mut().fire_or($($p),+);
+        let handler = $handler;
+        let res = handler.borrow_mut().fire_or($($p),+);
         res
     }};
 }
