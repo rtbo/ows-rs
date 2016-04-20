@@ -25,6 +25,8 @@ use std::cell::RefCell;
 
 #[macro_use]
 pub mod macros;
+#[macro_use]
+pub mod handler;
 pub mod platform;
 pub mod geometry;
 pub mod key;
