@@ -15,6 +15,9 @@ pub enum State {
     Hidden,
 }
 
+define_handler!{OnCloseHandler: FnMut(w: &mut Window) => bool}
+define_handler!{OnResizeHandler: FnMut(w: &mut Window, new_size: ISize)}
+
 pub trait Window {
 
     fn base(&self) -> &WindowBase;
@@ -77,8 +80,20 @@ pub trait Window {
 }
 
 
-define_handler!{OnCloseHandler: FnMut(w: &mut Window) => bool}
-define_handler!{OnResizeHandler: FnMut(w: &mut Window, new_size: ISize)}
+pub struct WindowBase {
+    on_close: RcCell<OnCloseHandler>,
+    on_resize: RcCell<OnResizeHandler>,
+}
+
+impl WindowBase {
+    pub fn new() -> WindowBase {
+        WindowBase {
+            on_close: Rc::new(RefCell::new(OnCloseHandler::new())),
+            on_resize: Rc::new(RefCell::new(OnResizeHandler::new())),
+        }
+    }
+}
+
 
 #[macro_export]
 macro_rules! fire {
@@ -107,18 +122,4 @@ macro_rules! fire_or {
         let res = hdler.borrow_mut().fire_or($($p),+);
         res
     }};
-}
-
-pub struct WindowBase {
-    on_close: RcCell<OnCloseHandler>,
-    on_resize: RcCell<OnResizeHandler>,
-}
-
-impl WindowBase {
-    pub fn new() -> WindowBase {
-        WindowBase {
-            on_close: Rc::new(RefCell::new(OnCloseHandler::new())),
-            on_resize: Rc::new(RefCell::new(OnResizeHandler::new())),
-        }
-    }
 }
