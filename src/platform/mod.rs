@@ -1,4 +1,9 @@
 
+
+use std::ops::Deref;
+use std::ops::DerefMut;
+
+
 pub mod xcbplatform;
 
 use window::Window;
@@ -27,5 +32,23 @@ pub trait Platform : EventLoop {
     fn create_window(&mut self) -> WinId;
     fn window(&self, id: WinId) -> &Window;
     fn window_mut(&mut self, id: WinId) -> &mut Window;
+}
+
+
+impl EventLoop for Box<Platform> {
+    fn loop_events(&mut self) -> i32 {
+        (*self).deref_mut().loop_events()
+    }
+}
+impl Platform for Box<Platform> {
+    fn create_window(&mut self) -> WinId {
+        (*self).deref_mut().create_window()
+    }
+    fn window(&self, id: WinId) -> &Window {
+        (*self).deref().window(id)
+    }
+    fn window_mut(&mut self, id: WinId) -> &mut Window {
+        (*self).deref_mut().window_mut(id)
+    }
 }
 

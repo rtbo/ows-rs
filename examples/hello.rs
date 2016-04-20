@@ -10,12 +10,11 @@ fn main() {
     let wid = p.create_window();
 
     // accessing using "with_win" idiom
-    ows::with_win_mut(&mut (*p), wid,
+    ows::with_win_mut(&mut p, wid,
         |w| w.set_title("Hello, World".to_string())
     );
-    println!("{}",
-        ows::with_win(&(*p), wid, |w| w.title())
-    );
+
+    println!("{}", ows::with_win(&p, wid, |w| w.title()));
 
     // alternatively, accessing using "getter" idiom
     {
