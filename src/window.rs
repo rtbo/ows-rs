@@ -83,14 +83,26 @@ define_handler!{OnResizeHandler: FnMut(w: &mut Window, new_size: ISize)}
 #[macro_export]
 macro_rules! fire {
     ($hdler:expr, $($p:expr),*) => {{
+        // A lifetime error occurs without this no-op let.
         let hdler = $hdler;
         hdler.borrow_mut().fire($($p),*);
     }};
 }
 
 #[macro_export]
+macro_rules! fire_res {
+    ($hdler:expr, $($p:expr),*) => {{
+        // A lifetime error occurs without this no-op let.
+        let hdler = $hdler;
+        let res = hdler.borrow_mut().fire($($p),*);
+        res
+    }};
+}
+
+#[macro_export]
 macro_rules! fire_or {
     ($hdler:expr, $($p:expr),+) => {{
+        // A lifetime error occurs without this no-op let.
         let hdler = $hdler;
         let res = hdler.borrow_mut().fire_or($($p),+);
         res
