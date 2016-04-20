@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate ows;
 
 use ows::{Platform, Window};
