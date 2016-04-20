@@ -62,8 +62,8 @@ macro_rules! define_handler {
             pub fn set(&mut self, handler: Option<Box<Fn($($pt),*) -> $ret>>) {
                 self.handler = handler;
             }
-            pub fn fire(&self, $($pn: $pt),*) -> $ret {
-                self.handler.as_ref().map(|handler| (*handler)($($pn),*)).unwrap()
+            pub fn fire(&self, $($pn: $pt),*) -> Option<$ret> {
+                self.handler.as_ref().map(|handler| (*handler)($($pn),*))
             }
             pub fn fire_or(&self, def:$ret, $($pn: $pt),*) -> $ret {
                 self.handler.as_ref().map_or(def, |handler| (*handler)($($pn),*))
@@ -132,8 +132,8 @@ macro_rules! define_handler {
             pub fn set(&mut self, handler: Option<Box<FnMut($($pt),*) -> $ret>>) {
                 self.handler = handler;
             }
-            pub fn fire(&mut self, $($pn: $pt),*) -> $ret {
-                self.handler.as_mut().map(|handler| (*handler)($($pn),*)).unwrap()
+            pub fn fire(&mut self, $($pn: $pt),*) -> Option<$ret> {
+                self.handler.as_mut().map(|handler| (*handler)($($pn),*))
             }
             pub fn fire_or(&mut self, def:$ret, $($pn: $pt),*) -> $ret {
                 self.handler.as_mut().map_or(def, |handler| (*handler)($($pn),*))
@@ -250,11 +250,12 @@ mod define_handler_fn_test {
         let mut h = NoParamRet::new();
         assert!(!h.is_set());
         assert_eq!(40, h.fire_or(40));
+        assert!(h.fire().is_none());
 
         h.set(Some(Box::new(|| 37)));
         assert!(h.is_set());
         assert_eq!(37, h.fire_or(40));
-        assert_eq!(37, h.fire());
+        assert_eq!(37, h.fire().unwrap());
     }
 
 
@@ -265,13 +266,14 @@ mod define_handler_fn_test {
         let mut h = ParamRet::new();
         assert_eq!("32 / a string",
             h.fire_or("32 / a string".to_string(), 54, "another string"));
+        assert!(h.fire(54, "another_string").is_none());
 
         h.set(Some(Box::new(|n, s| format!("{} / {}", n, s))));
         assert!(h.is_set());
         assert_eq!("54 / another string",
             h.fire_or("32 / a string".to_string(), 54, "another string"));
         assert_eq!("54 / another string",
-            h.fire(54, "another string"));
+            h.fire(54, "another string").unwrap());
     }
 }
 
@@ -328,11 +330,12 @@ mod define_handler_fnmut_test {
         let mut h = NoParamRet::new();
         assert!(!h.is_set());
         assert_eq!(40, h.fire_or(40));
+        assert!(h.fire().is_none());
 
         h.set(Some(Box::new(|| 37)));
         assert!(h.is_set());
         assert_eq!(37, h.fire_or(40));
-        assert_eq!(37, h.fire());
+        assert_eq!(37, h.fire().unwrap());
     }
 
 
@@ -343,13 +346,14 @@ mod define_handler_fnmut_test {
         let mut h = ParamRet::new();
         assert_eq!("32 / a string",
             h.fire_or("32 / a string".to_string(), 54, "another string"));
+        assert!(h.fire(54, "another string").is_none());
 
         h.set(Some(Box::new(|n, s| format!("{} / {}", n, s))));
         assert!(h.is_set());
         assert_eq!("54 / another string",
             h.fire_or("32 / a string".to_string(), 54, "another string"));
         assert_eq!("54 / another string",
-            h.fire(54, "another string"));
+            h.fire(54, "another string").unwrap());
     }
 }
 
