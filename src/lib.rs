@@ -1,5 +1,6 @@
 
 #![feature(log_syntax)]
+#![feature(fnbox)]
 
 #[cfg(target_os = "windows")]
 extern crate winapi;
@@ -27,11 +28,12 @@ use std::cell::RefCell;
 pub mod macros;
 #[macro_use]
 pub mod handler;
+#[macro_use]
+pub mod window;
 pub mod platform;
 pub mod geometry;
 pub mod key;
 pub mod mouse;
-pub mod window;
 
 pub use platform::*;
 pub use window::Window;

@@ -80,6 +80,22 @@ pub trait Window {
 define_handler!{OnCloseHandler: FnMut(w: &mut Window) => bool}
 define_handler!{OnResizeHandler: FnMut(w: &mut Window, new_size: ISize)}
 
+#[macro_export]
+macro_rules! fire {
+    ($hdler:expr, $($p:expr),*) => {{
+        let hdler = $hdler;
+        hdler.borrow_mut().fire($($p),*);
+    }};
+}
+
+#[macro_export]
+macro_rules! fire_or {
+    ($hdler:expr, $($p:expr),+) => {{
+        let hdler = $hdler;
+        let res = hdler.borrow_mut().fire_or($($p),+);
+        res
+    }};
+}
 
 pub struct WindowBase {
     on_close: RcCell<OnCloseHandler>,

@@ -175,10 +175,7 @@ impl XcbPlatform {
             if protocol == wm_delete_window {
                 let close_window = {
                     let w = self.window_mut(xcb_to_wid(ev.window()));
-                    let handler = w.on_close();
-                    let cw = handler.borrow_mut()
-                        .fire_or(true, w);
-                    cw
+                    fire_or!(w.on_close(), true, w)
                 };
                 if close_window {
                     // on_close was not set or returned true
@@ -346,8 +343,7 @@ impl XcbWindow {
 
         let new_size = ISize::new(ev.width() as i32, ev.height() as i32);
         if new_size != self.rect.size() {
-            let handler = self.on_resize();
-            handler.borrow_mut().fire(self as &mut Window, new_size);
+            fire!(self.on_resize(), self as &mut Window, new_size);
         }
 
         self.rect = IRect::new_ps(new_pos, new_size);
