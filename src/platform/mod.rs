@@ -25,6 +25,7 @@ where F: FnOnce(&mut Window) -> R {
 
 pub trait EventLoop {
     fn loop_events(&mut self) -> i32;
+    fn exit(&mut self, code: i32);
 }
 
 
@@ -38,6 +39,9 @@ pub trait Platform : EventLoop {
 impl EventLoop for Box<Platform> {
     fn loop_events(&mut self) -> i32 {
         (*self).deref_mut().loop_events()
+    }
+    fn exit(&mut self, code: i32) {
+        (*self).deref_mut().exit(code);
     }
 }
 impl Platform for Box<Platform> {

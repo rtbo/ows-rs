@@ -233,6 +233,9 @@ impl EventLoop for XcbPlatform {
             "XCB event loop was exited abruptly"
         )
     }
+    fn exit(&mut self, code: i32) {
+        self.exit_code = Some(code);
+    }
 }
 
 
