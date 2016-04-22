@@ -4,11 +4,16 @@ use std::ops::Deref;
 use std::ops::DerefMut;
 
 
+#[cfg(target_os = "linux")]
 pub mod xcbplatform;
+#[cfg(target_os = "windows")]
+pub mod win32platform;
+
 
 use window::Window;
 
 pub type WinId = usize;
+
 
 pub fn with_win<F, R>(p: &Platform, wid: WinId, f: F) -> R
 where F: FnOnce(&Window) -> R {

@@ -21,7 +21,7 @@ extern crate libc;
 #[macro_use]
 extern crate log;
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 
 #[macro_use]
@@ -39,9 +39,16 @@ pub use platform::*;
 pub use window::Window;
 
 pub type RcCell<T> = Rc<RefCell<T>>;
+pub type WeakCell<T> = Weak<RefCell<T>>;
 
 #[cfg(target_os="linux")]
 pub fn default_platform() -> Option<Box<Platform>> {
     use platform::xcbplatform::XcbPlatform;
     XcbPlatform::new().map(|p| Box::new(p) as Box<Platform>)
+}
+
+#[cfg(target_os="windows")]
+pub fn default_platform() -> Option<Box<Platform>> {
+    use platform::win32platform::Win32Platform;
+    Some(Box::new(Win32Platform::new()))
 }
