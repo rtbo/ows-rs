@@ -200,6 +200,9 @@ fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM)
 impl Win32SharedPlatform {
     fn wnd_proc(&mut self, hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> bool {
         match msg {
+            WM_SIZE => {
+                self.windows.get_mut(&hwnd).unwrap().handle_wm_size(wparam, lparam)
+            },
             WM_CLOSE => {
                 let close_window = {
                     let w = self.windows.get_mut(&hwnd).unwrap();
@@ -213,10 +216,10 @@ impl Win32SharedPlatform {
                         self.exit_code = Some(0);
                     }
                 }
+                true
             },
-            _ => {}
+            _ => { false }
         }
-        false
     }
 }
 
@@ -225,7 +228,7 @@ pub struct Win32Window {
     base: WindowBase,
     hwnd: HWND,
     title: String,
-
+    rect: IRect,
 }
 
 impl Win32Window {
@@ -234,7 +237,65 @@ impl Win32Window {
             base: WindowBase::new(),
             hwnd: hwnd,
             title: "".to_string(),
+            rect: IRect::new(0, 0, 0, 0),
         }
+    }
+    fn handle_wm_size(&mut self, wparam: WPARAM, lparam: LPARAM) -> bool {
+        match wparam as u32 {
+            SIZE_MAXSHOW | SIZE_MAXHIDE => { false },
+            SIZE_MINIMIZED => {
+                // state change
+                true
+            },
+            SIZE_MAXIMIZED => {
+                // state change
+                self.handle_rect_change();
+                true
+            },
+            SIZE_RESTORED => {
+                self.handle_rect_change();
+                true
+            },
+            _ => { false },
+        }
+    }
+
+    fn handle_rect_change(&mut self) {
+        let old_r = self.rect;
+        let r = self.rect_sys();
+
+        self.rect = r;
+
+        if old_r.size() != r.size() {
+            fire!(self.on_resize(), self as &mut Window, r.size());
+        }
+        if old_r.point() != r.point() {
+            // move
+        }
+    }
+
+    fn rect_sys(&self) -> IRect {
+        unsafe {
+			let mut wr = mem::uninitialized::<RECT>();
+			GetWindowRect(self.hwnd, &mut wr);
+
+			let mut ar = RECT { left: 0, top: 0, right: 0, bottom: 0};
+			AdjustWindowRectEx(&mut ar, self.style(), 0, self.ex_style());
+
+			wr.left -= ar.left;
+			wr.top -= ar.top;
+			wr.right -= ar.right;
+			wr.bottom -= ar.bottom;
+
+            IRect::from(wr)
+        }
+    }
+
+    fn style(&self) -> DWORD {
+        unsafe { GetWindowLongW(self.hwnd, GWL_STYLE) as DWORD }
+    }
+    fn ex_style(&self) -> DWORD {
+        unsafe { GetWindowLongW(self.hwnd, GWL_EXSTYLE) as DWORD }
     }
 }
 
@@ -251,6 +312,8 @@ impl Window for Win32Window {
     }
     fn set_title(&mut self, title: String) {
         self.title = title;
+        let title = to_u16(&self.title);
+        unsafe { SetWindowTextW(self.hwnd, title.as_ptr()); }
     }
 
     fn state(&self) -> State {
@@ -258,5 +321,11 @@ impl Window for Win32Window {
     }
     fn set_state(&mut self, state: State) {
         unsafe { ShowWindow(self.hwnd, SW_SHOWNORMAL); }
+    }
+}
+
+impl Drop for Win32Window {
+    fn drop (&mut self) {
+        unsafe { DestroyWindow(self.hwnd); }
     }
 }
