@@ -15,56 +15,56 @@ pub enum State {
     Hidden,
 }
 
-define_handler!{OnCloseHandler: FnMut(w: &mut Window) => bool}
-define_handler!{OnResizeHandler: FnMut(w: &mut Window, new_size: ISize)}
+define_handler!{OnCloseHandler: FnMut() => bool}
+define_handler!{OnResizeHandler: FnMut(new_size: ISize)}
 
-pub trait Window {
-
-    fn base(&self) -> &WindowBase;
-    fn base_mut(&mut self) -> &mut WindowBase;
-
-    fn title(&self) -> String;
-    fn set_title(&mut self, tit: String);
-
-    fn show_normal(&mut self) {
-        self.set_state(State::Normal);
-    }
-
-    fn show_minimized(&mut self) {
-        self.set_state(State::Minimized);
-    }
-
-    fn show_maximized(&mut self) {
-        self.set_state(State::Maximized);
-    }
-
-    fn show_fullscreen(&mut self) {
-        self.set_state(State::Fullscreen);
-    }
-
-    fn hide(&mut self) {
-        self.set_state(State::Hidden);
-    }
-
-    fn state(&self) -> State;
-    fn set_state(&mut self, state: State);
-
-
-    fn on_close(&self) -> RcCell<OnCloseHandler> {
-        self.base().on_close.clone()
-    }
-
-    fn on_resize(&self) -> RcCell<OnResizeHandler> {
-        self.base().on_resize.clone()
-    }
-
-
-}
+//pub trait Window {
+//
+//    fn base(&self) -> &WindowBase;
+//    fn base_mut(&mut self) -> &mut WindowBase;
+//
+//    fn title(&self) -> String;
+//    fn set_title(&mut self, tit: String);
+//
+//    fn show_normal(&mut self) {
+//        self.set_state(State::Normal);
+//    }
+//
+//    fn show_minimized(&mut self) {
+//        self.set_state(State::Minimized);
+//    }
+//
+//    fn show_maximized(&mut self) {
+//        self.set_state(State::Maximized);
+//    }
+//
+//    fn show_fullscreen(&mut self) {
+//        self.set_state(State::Fullscreen);
+//    }
+//
+//    fn hide(&mut self) {
+//        self.set_state(State::Hidden);
+//    }
+//
+//    fn state(&self) -> State;
+//    fn set_state(&mut self, state: State);
+//
+//
+//    fn on_close(&self) -> RcCell<OnCloseHandler> {
+//        self.base().on_close.clone()
+//    }
+//
+//    fn on_resize(&self) -> RcCell<OnResizeHandler> {
+//        self.base().on_resize.clone()
+//    }
+//
+//
+//}
 
 
 pub struct WindowBase {
-    on_close: RcCell<OnCloseHandler>,
-    on_resize: RcCell<OnResizeHandler>,
+    pub on_close: RcCell<OnCloseHandler>,
+    pub on_resize: RcCell<OnResizeHandler>,
 }
 
 impl WindowBase {

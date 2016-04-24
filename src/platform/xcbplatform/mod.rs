@@ -6,14 +6,15 @@
 
 mod xcbkeyboard;
 
-use platform::{Platform, EventLoop, WinId};
-use window::{self, Window, WindowBase};
+use ::{RcCell, WeakCell};
+use platform::{Platform, PlatformWindow, EventLoop};
+use window::{self, WindowBase};
 use geometry::*;
 
 use xcb::{self, dri2};
 
 use std::rc::Rc;
-use std::cell::Cell;
+use std::cell::{RefCell, Cell};
 use std::collections::{HashMap};
 use std::mem;
 
@@ -65,15 +66,6 @@ const NET_WM_STATE_DEMANDS_ATTENTION: u32 = 0x0800;
 const NET_WM_STATE_FOCUSED: u32 = 0x1000;
 
 
-fn wid_to_xcb(wid: WinId) -> xcb::Window {
-    debug_assert!(wid >> 32 == 0);
-    wid as xcb::Window
-}
-
-fn xcb_to_wid(xcb: xcb::Window) -> WinId {
-    xcb as WinId
-}
-
 
 struct XcbSharedState {
     conn: xcb::Connection,
@@ -90,11 +82,11 @@ impl XcbSharedState {
 
 pub struct XcbPlatform {
     shared_state: Rc<XcbSharedState>,
-    windows: HashMap<WinId, XcbWindow>,
+    windows: RefCell<HashMap<xcb::Window, RcCell<XcbWindow>>>,
     kbd: xcbkeyboard::XcbKeyboard,
     kbd_ev: u8,
     dri2_ev: u8,
-    exit_code: Option<i32>,
+    exit_code: Cell<Option<i32>>,
 }
 
 
@@ -142,11 +134,11 @@ impl XcbPlatform {
                     def_screen: def_screen as usize,
                     atoms: atoms,
                 }),
-                windows: HashMap::new(),
+                windows: RefCell::new(HashMap::new()),
                 kbd: kbd,
                 kbd_ev: kbd_ev,
                 dri2_ev: dri2_ev,
-                exit_code: None,
+                exit_code: Cell::new(None),
             }
         }).ok()
     }
@@ -159,61 +151,55 @@ impl XcbPlatform {
         self.shared_state.atom(atom)
     }
 
-    fn xcb_win(&self, win: xcb::Window) -> &XcbWindow {
-        self.windows.get(&xcb_to_wid(win)).expect("try to access unregistered window")
-    }
-    fn xcb_win_mut(&mut self, win: xcb::Window) -> &mut XcbWindow {
-        self.windows.get_mut(&xcb_to_wid(win)).expect("try to access unregistered window")
+    fn window(&self, xcb_win: xcb::Window) -> RcCell<XcbWindow> {
+        self.windows.borrow().get(&xcb_win)
+            .expect("unknown window").clone()
     }
 
-    fn handle_client_message(&mut self, ev: &xcb::ClientMessageEvent) {
+    fn handle_client_message(&self, ev: &xcb::ClientMessageEvent) {
         let wm_protocols = self.atom(Atom::WM_PROTOCOLS);
         let wm_delete_window = self.atom(Atom::WM_DELETE_WINDOW);
 
         if ev.type_() == wm_protocols && ev.format() == 32 {
             let protocol = ev.data().data32()[0];
             if protocol == wm_delete_window {
+                let w = self.window(ev.window());
                 let close_window = {
-                    let w = self.window_mut(xcb_to_wid(ev.window()));
-                    fire_or!(w.on_close(), true, w)
+                    let w = w.borrow();
+                    fire_or!(w.base.on_close.clone(), true)
                 };
                 if close_window {
                     // on_close was not set or returned true
                     // dropping the window will close it
-                    self.windows.remove(&xcb_to_wid(ev.window()));
-                    if self.windows.is_empty() && self.exit_code.is_none() {
-                        self.exit_code = Some(0);
+                    self.windows.borrow_mut().remove(&ev.window());
+                    if self.windows.borrow().is_empty() && self.exit_code.get().is_none() {
+                        self.exit_code.set(Some(0));
                     }
                 }
             }
         }
     }
 
-    fn handle_configure_notify(&mut self, ev: &xcb::ConfigureNotifyEvent) {
-        self.xcb_win_mut(ev.event()).handle_configure_notify(&ev);
+    fn handle_configure_notify(&self, ev: &xcb::ConfigureNotifyEvent) {
+        let w = self.window(ev.event());
+        w.borrow_mut().handle_configure_notify(&ev);
     }
 }
 
 
 impl Platform for XcbPlatform {
-    fn create_window(&mut self) -> WinId {
-        let w = XcbWindow::new(self.shared_state.clone());
-        let wid = xcb_to_wid(w.xcb_win);
-        self.windows.insert(wid, w);
-        wid
-    }
-
-    fn window(&self, wid: WinId) -> &Window {
-        self.windows.get(&wid).expect("try to access unregistered window")
-    }
-    fn window_mut(&mut self, wid: WinId) -> &mut Window {
-        self.windows.get_mut(&wid).expect("try to access unregistered window")
+    fn create_window(&self, base: WindowBase) -> RcCell<PlatformWindow> {
+        let w = XcbWindow::new(base, self.shared_state.clone());
+        let xcb_win = w.xcb_win;
+        let w = Rc::new(RefCell::new(w));
+        self.windows.borrow_mut().insert(xcb_win, w.clone());
+        w
     }
 }
 
 impl EventLoop for XcbPlatform {
-    fn loop_events(&mut self) -> i32 {
-        while let Some(ev) = self.shared_state.conn.wait_for_event() {
+    fn loop_events(&self) -> i32 {
+        while let Some(ev) = self.conn().wait_for_event() {
             let r = ev.response_type() & !0x80;
             match r {
                 xcb::CLIENT_MESSAGE => {
@@ -224,17 +210,17 @@ impl EventLoop for XcbPlatform {
                 },
                 _ => {}
             }
-            if self.exit_code.is_some() { break; }
+            if self.exit_code.get().is_some() { break; }
         }
         // 2 ways to exit event loop:
         //  - setting exit_code
         //  - error (wait_for_event returns None)
-        self.exit_code.expect(
+        self.exit_code.get().expect(
             "XCB event loop was exited abruptly"
         )
     }
-    fn exit(&mut self, code: i32) {
-        self.exit_code = Some(code);
+    fn exit(&self, code: i32) {
+        self.exit_code.set(Some(code));
     }
 }
 
@@ -251,12 +237,12 @@ pub struct XcbWindow {
 
 
 impl XcbWindow {
-    fn new(shared_state: Rc<XcbSharedState>) -> XcbWindow {
+    fn new(base: WindowBase, shared_state: Rc<XcbSharedState>) -> XcbWindow {
 
         let xcb_win = shared_state.conn.generate_id();
 
         XcbWindow {
-            base: WindowBase::new(),
+            base: base,
             shared_state: shared_state,
             xcb_win: xcb_win,
             title: "".to_string(),
@@ -346,7 +332,7 @@ impl XcbWindow {
 
         let new_size = ISize::new(ev.width() as i32, ev.height() as i32);
         if new_size != self.rect.size() {
-            fire!(self.on_resize(), self as &mut Window, new_size);
+            fire!(self.base.on_resize.clone(), new_size);
         }
 
         self.rect = IRect::new_ps(new_pos, new_size);
@@ -446,9 +432,11 @@ impl XcbWindow {
 
 }
 
-impl Window for XcbWindow {
+impl PlatformWindow for XcbWindow {
+
     fn base(&self) -> &WindowBase { &self.base }
     fn base_mut(&mut self) -> &mut WindowBase { &mut self.base }
+
     fn title(&self) -> String {
         self.title.clone()
     }

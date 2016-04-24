@@ -36,7 +36,7 @@ pub mod key;
 pub mod mouse;
 
 pub use platform::*;
-pub use window::Window;
+//pub use window::Window;
 
 pub type RcCell<T> = Rc<RefCell<T>>;
 pub type WeakCell<T> = Weak<RefCell<T>>;
