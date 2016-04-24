@@ -6,6 +6,9 @@ Particularily how to make the lifetime system work with a traditional IU toolkit
 
 Eventually, if other people join the project, it will become an actual IU toolkit.
 
+## Some general design specifications
+ -  Application developer should not get bothered with `RefCell` interface
+    -  If such interface is needed to share some state, it should be well hidden behind regular types
 
 ## Some top-level design specifications
  -  Platform abstraction with erased types
@@ -16,7 +19,7 @@ Eventually, if other people join the project, it will become an actual IU toolki
  -  access and modify ui elements within handlers
 
 ## Some widgets system design specifications
- -  lazy resources rendering
+ -  lazy resources loading
  -  use of vector graphics primitives
  -  ... TBD
 
