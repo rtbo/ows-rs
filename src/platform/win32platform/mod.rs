@@ -12,7 +12,7 @@ use std::os::windows::ffi::OsStrExt;
 use std::ffi::OsStr;
 use std::collections::{HashMap, HashSet};
 use std::rc::{Rc, Weak};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::mem;
 use std::ptr;
 
@@ -65,30 +65,30 @@ impl Area for RECT {
 
 
 struct Win32SharedPlatform {
-    windows: HashMap<HWND, WeakCell<Win32Window>>,
-    registered_cls: HashSet<Vec<u16>>,
-    exit_code: Option<i32>
+    windows: RefCell<HashMap<HWND, WeakCell<Win32Window>>>,
+    registered_cls: RefCell<HashSet<Vec<u16>>>,
+    exit_code: Cell<Option<i32>>,
 }
 
 pub struct Win32Platform {
-    shared_platform: RcCell<Win32SharedPlatform>,
+    shared_platform: Rc<Win32SharedPlatform>,
 }
 
 impl Win32Platform {
     pub fn new() -> Win32Platform {
         Win32Platform {
-            shared_platform: Rc::new(RefCell::new(Win32SharedPlatform {
-                windows: HashMap::new(),
-                registered_cls: HashSet::new(),
-                exit_code: None,
-            })),
+            shared_platform: Rc::new(Win32SharedPlatform {
+                windows: RefCell::new(HashMap::new()),
+                registered_cls: RefCell::new(HashSet::new()),
+                exit_code: Cell::new(None),
+            }),
         }
     }
 }
 
 impl Platform for Win32Platform {
     fn create_window(&self, base: WindowBase) -> RcCell<PlatformWindow> {
-        Win32Window::new(base, Rc::downgrade(&self.shared_platform))
+        Win32Window::new(base, self.shared_platform.clone())
     }
 }
 
@@ -98,22 +98,19 @@ impl EventLoop for Win32Platform {
             let mut msg = mem::uninitialized::<MSG>();
             match GetMessageW(&mut msg, ptr::null_mut(), 0, 0) {
                 code @ -1 | code @ 0 => {
-                    let mut sp = self.shared_platform.borrow_mut();
-                    sp.exit_code = Some(code);
+                    self.shared_platform.exit_code.set(Some(code));
                 },
                 _ => {
                     TranslateMessage(&mut msg);
                     DispatchMessageW(&mut msg);
                 },
             }
-            let sp = self.shared_platform.borrow();
-            if sp.exit_code.is_some() { break; }
+            if self.shared_platform.exit_code.get().is_some() { break; }
         }}
-        let sp = self.shared_platform.borrow();
-        sp.exit_code.unwrap()
+        self.shared_platform.exit_code.get().unwrap()
     }
     fn exit(&self, code: i32) {
-        self.shared_platform.borrow_mut().exit_code = Some(code);
+        self.shared_platform.exit_code.set(Some(code));
     }
 }
 
@@ -121,12 +118,12 @@ unsafe extern "system"
 fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM)
         -> LRESULT {
 
-    let shared_platform: Option<&mut WeakCell<Win32SharedPlatform>>
+    let shared_platform: Option<&mut Weak<Win32SharedPlatform>>
             = mem::transmute(get_window_long_ptr(hwnd, 0));
 
     if let Some(sp) = shared_platform {
         if let Some(sp) = Weak::upgrade(&sp) {
-            if sp.borrow_mut().wnd_proc(hwnd, msg, wparam, lparam) {
+            if sp.wnd_proc(hwnd, msg, wparam, lparam) {
                 return 0;
             }
         }
@@ -135,7 +132,7 @@ fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM)
 }
 
 impl Win32SharedPlatform {
-    fn wnd_proc(&mut self, hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> bool {
+    fn wnd_proc(&self, hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> bool {
 
         if let Some(w) = self.window(hwnd) {
             match msg {
@@ -145,8 +142,9 @@ impl Win32SharedPlatform {
                 WM_CLOSE => {
                     if fire_or!(w.borrow().base.on_close.clone(), true) {
                         w.borrow_mut().close();
-                        if self.windows.is_empty() && self.exit_code.is_none() {
-                            self.exit_code = Some(0);
+                        if self.windows.borrow().is_empty()
+                                && self.exit_code.get().is_none() {
+                            self.exit_code.set(Some(0));
                         }
                     }
                     true
@@ -161,14 +159,14 @@ impl Win32SharedPlatform {
     }
 
     fn window(&self, hwnd: HWND) -> Option<RcCell<Win32Window>> {
-        self.windows.get(&hwnd).and_then(|wwc| Weak::upgrade(&wwc))
+        self.windows.borrow().get(&hwnd).and_then(|ww| Weak::upgrade(&ww))
     }
 
     // TODO: WindowSettings (popup, frameless, modal...)
-    fn register_wnd_cls(&mut self) -> Vec<u16> {
+    fn register_wnd_cls(&self) -> Vec<u16> {
         let cn_u8 = "OwsWindowClassName";
         let cls_name = to_u16(&cn_u8);
-        if self.registered_cls.contains(&cls_name) {
+        if self.registered_cls.borrow().contains(&cls_name) {
             cls_name.clone()
         }
         else { unsafe {
@@ -190,7 +188,7 @@ impl Win32SharedPlatform {
             if RegisterClassExW(&wc) == 0 {
                 panic!("could not register class {}", &cn_u8);
             }
-            self.registered_cls.insert(cls_name.clone());
+            self.registered_cls.borrow_mut().insert(cls_name.clone());
             cls_name
         }}
     }
@@ -200,14 +198,14 @@ impl Win32SharedPlatform {
 pub struct Win32Window {
     base: WindowBase,
     weak_me: WeakCell<Win32Window>,
-    shared_platform: WeakCell<Win32SharedPlatform>,
+    shared_platform: Rc<Win32SharedPlatform>,
     hwnd: HWND,
     title: String,
     rect: IRect,
 }
 
 impl Win32Window {
-    fn new(base: WindowBase, shared_platform: WeakCell<Win32SharedPlatform>) -> RcCell<Win32Window> {
+    fn new(base: WindowBase, shared_platform: Rc<Win32SharedPlatform>) -> RcCell<Win32Window> {
         let w = Rc::new(RefCell::new(Win32Window {
             base: base,
             weak_me: Weak::new(),
@@ -220,12 +218,7 @@ impl Win32Window {
         w
     }
     fn create(&mut self) {
-        let sp = Weak::upgrade(&self.shared_platform)
-            .expect("Win32: PlatformWindow outlived Platform");
-        let cls_name = {
-            let mut sp = sp.borrow_mut();
-            sp.register_wnd_cls()
-        };
+        let cls_name = self.shared_platform.register_wnd_cls();
         let title = to_u16(&self.title);
         let hwnd = unsafe {
             let hinstance = GetModuleHandleW(ptr::null());
@@ -243,13 +236,13 @@ impl Win32Window {
 
             assert!(!hwnd.is_null());
             // shared_platform must be found by WindowProc through HWND
-            let spbox = Box::new(self.shared_platform.clone());
+            let spbox = Box::new(Rc::downgrade(&self.shared_platform));
             let spbox = Box::into_raw(spbox);
             set_window_long_ptr(hwnd, 0, mem::transmute(spbox));
             hwnd
         };
-        let mut sp = sp.borrow_mut();
-        sp.windows.insert(hwnd, self.weak_me.clone());
+        self.shared_platform.windows.borrow_mut()
+                .insert(hwnd, self.weak_me.clone());
     }
 
     fn created(&self) -> bool {
@@ -341,9 +334,9 @@ impl PlatformWindow for Win32Window {
 
     fn close(&mut self) {
         if self.created() {
-            if let Some(sp) = Weak::upgrade(&self.shared_platform) {
-                let mut sp = sp.borrow_mut();
-                sp.windows.remove(&self.hwnd);
+            {
+                let mut windows = self.shared_platform.windows.borrow_mut();
+                windows.remove(&self.hwnd);
             }
             unsafe {
                 let spbox = get_window_long_ptr(self.hwnd, 0);
