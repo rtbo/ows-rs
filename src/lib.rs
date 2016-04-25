@@ -1,6 +1,6 @@
 
 #![feature(log_syntax)]
-#![feature(fnbox)]
+#![feature(downgraded_weak)]
 
 #[cfg(target_os = "windows")]
 extern crate winapi;

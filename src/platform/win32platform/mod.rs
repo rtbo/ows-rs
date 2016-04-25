@@ -98,7 +98,7 @@ impl EventLoop for Win32Platform {
             let mut msg = mem::uninitialized::<MSG>();
             match GetMessageW(&mut msg, ptr::null_mut(), 0, 0) {
                 code @ -1 | code @ 0 => {
-                    let sp = self.shared_platform.borrow_mut();
+                    let mut sp = self.shared_platform.borrow_mut();
                     sp.exit_code = Some(code);
                 },
                 _ => {
@@ -137,20 +137,13 @@ fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM)
 impl Win32SharedPlatform {
     fn wnd_proc(&mut self, hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> bool {
 
-        let handle_msg = |w, f| {
-            if let Some(w) = w { f(w) }
-            else {
-                warn!("Ows-Win32: message from unregistered window");
-            }
-        };
-
         if let Some(w) = self.window(hwnd) {
             match msg {
                 WM_SIZE => {
-                    w.borrow_mut().handle_wm_size(wparam, lparam);
+                    w.borrow_mut().handle_wm_size(wparam, lparam)
                 },
                 WM_CLOSE => {
-                    if fire_or!(w.borrow().on_close.clone(), true) {
+                    if fire_or!(w.borrow().base.on_close.clone(), true) {
                         w.borrow_mut().close();
                         if self.windows.is_empty() && self.exit_code.is_none() {
                             self.exit_code = Some(0);
@@ -161,6 +154,10 @@ impl Win32SharedPlatform {
                 _ => { false }
             }
         }
+        else {
+            warn!("Ows-Win32: message from unregistered window");
+            false
+        }
     }
 
     fn window(&self, hwnd: HWND) -> Option<RcCell<Win32Window>> {
@@ -168,10 +165,10 @@ impl Win32SharedPlatform {
     }
 
     // TODO: WindowSettings (popup, frameless, modal...)
-    fn register_wnd_cls(&self) -> Vec<u16> {
+    fn register_wnd_cls(&mut self) -> Vec<u16> {
         let cn_u8 = "OwsWindowClassName";
         let cls_name = to_u16(&cn_u8);
-        if self.registered_cls.borrow().contains(&cls_name) {
+        if self.registered_cls.contains(&cls_name) {
             cls_name.clone()
         }
         else { unsafe {
@@ -193,7 +190,7 @@ impl Win32SharedPlatform {
             if RegisterClassExW(&wc) == 0 {
                 panic!("could not register class {}", &cn_u8);
             }
-            self.registered_cls.borrow_mut().insert(cls_name.clone());
+            self.registered_cls.insert(cls_name.clone());
             cls_name
         }}
     }
@@ -223,10 +220,10 @@ impl Win32Window {
         w
     }
     fn create(&mut self) {
-        let sp = Weak::upgrade(self.shared_platform)
+        let sp = Weak::upgrade(&self.shared_platform)
             .expect("Win32: PlatformWindow outlived Platform");
         let cls_name = {
-            let sp = sp.borrow_mut();
+            let mut sp = sp.borrow_mut();
             sp.register_wnd_cls()
         };
         let title = to_u16(&self.title);
@@ -252,8 +249,13 @@ impl Win32Window {
             hwnd
         };
         let mut sp = sp.borrow_mut();
-        sp.windows.insert(&hwnd, self.weak_me.clone());
+        sp.windows.insert(hwnd, self.weak_me.clone());
     }
+
+    fn created(&self) -> bool {
+        !self.hwnd.is_null()
+    }
+
     fn handle_wm_size(&mut self, wparam: WPARAM, lparam: LPARAM) -> bool {
         match wparam as u32 {
             SIZE_MAXSHOW | SIZE_MAXHIDE => { false },
@@ -340,12 +342,12 @@ impl PlatformWindow for Win32Window {
     fn close(&mut self) {
         if self.created() {
             if let Some(sp) = Weak::upgrade(&self.shared_platform) {
-                let sp = sp.borrow_mut();
+                let mut sp = sp.borrow_mut();
                 sp.windows.remove(&self.hwnd);
             }
             unsafe {
                 let spbox = get_window_long_ptr(self.hwnd, 0);
-                let spbox: *mut WeakCell<Win32SharedPlatform> = spbox;
+                let spbox: *mut WeakCell<Win32SharedPlatform> = mem::transmute(spbox);
                 assert!(!spbox.is_null());
                 let spbox = Box::from_raw(spbox);
                 set_window_long_ptr(self.hwnd, 0, 0);

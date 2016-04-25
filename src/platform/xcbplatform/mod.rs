@@ -13,7 +13,7 @@ use geometry::*;
 
 use xcb::{self, dri2};
 
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::{RefCell, Cell};
 use std::collections::{HashMap};
 use std::mem;
@@ -69,6 +69,7 @@ const NET_WM_STATE_FOCUSED: u32 = 0x1000;
 
 struct XcbSharedState {
     conn: xcb::Connection,
+    windows: RefCell<HashMap<xcb::Window, WeakCell<XcbWindow>>>,
     def_screen: usize,
     atoms: HashMap<Atom, xcb::Atom>,
 }
@@ -82,7 +83,6 @@ impl XcbSharedState {
 
 pub struct XcbPlatform {
     shared_state: Rc<XcbSharedState>,
-    windows: RefCell<HashMap<xcb::Window, RcCell<XcbWindow>>>,
     kbd: xcbkeyboard::XcbKeyboard,
     kbd_ev: u8,
     dri2_ev: u8,
@@ -131,10 +131,10 @@ impl XcbPlatform {
             XcbPlatform {
                 shared_state: Rc::new(XcbSharedState {
                     conn: conn,
+                    windows: RefCell::new(HashMap::new()),
                     def_screen: def_screen as usize,
                     atoms: atoms,
                 }),
-                windows: RefCell::new(HashMap::new()),
                 kbd: kbd,
                 kbd_ev: kbd_ev,
                 dri2_ev: dri2_ev,
@@ -151,7 +151,7 @@ impl XcbPlatform {
         self.shared_state.atom(atom)
     }
 
-    fn window(&self, xcb_win: xcb::Window) -> RcCell<XcbWindow> {
+    fn window(&self, xcb_win: xcb::Window) -> Option<RcCell<XcbWindow>> {
         self.windows.borrow().get(&xcb_win)
             .expect("unknown window").clone()
     }
@@ -164,16 +164,10 @@ impl XcbPlatform {
             let protocol = ev.data().data32()[0];
             if protocol == wm_delete_window {
                 let w = self.window(ev.window());
-                let close_window = {
-                    let w = w.borrow();
-                    fire_or!(w.base.on_close.clone(), true)
-                };
-                if close_window {
-                    // on_close was not set or returned true
-                    // dropping the window will close it
-                    self.windows.borrow_mut().remove(&ev.window());
-                    if self.windows.borrow().is_empty() && self.exit_code.get().is_none() {
-                        self.exit_code.set(Some(0));
+                if fire_or!(w.borrow().base.on_close.clone(), true) {
+                    w.borrow_mut().close();
+                    if self.windows.is_empty() && self.exit_code.is_none() {
+                        self.exit_code = Some(0);
                     }
                 }
             }
@@ -189,11 +183,7 @@ impl XcbPlatform {
 
 impl Platform for XcbPlatform {
     fn create_window(&self, base: WindowBase) -> RcCell<PlatformWindow> {
-        let w = XcbWindow::new(base, self.shared_state.clone());
-        let xcb_win = w.xcb_win;
-        let w = Rc::new(RefCell::new(w));
-        self.windows.borrow_mut().insert(xcb_win, w.clone());
-        w
+        XcbWindow::new(base, self.shared_state.clone())
     }
 }
 
@@ -227,6 +217,7 @@ impl EventLoop for XcbPlatform {
 
 pub struct XcbWindow {
     base: WindowBase,
+    weak_me: WeakCell<XcbWindow>,
     shared_state: Rc<XcbSharedState>,
     xcb_win: xcb::Window,
     title: String,
@@ -237,19 +228,18 @@ pub struct XcbWindow {
 
 
 impl XcbWindow {
-    fn new(base: WindowBase, shared_state: Rc<XcbSharedState>) -> XcbWindow {
-
-        let xcb_win = shared_state.conn.generate_id();
-
-        XcbWindow {
+    fn new(base: WindowBase, shared_state: Rc<XcbSharedState>) -> RefCell<XcbWindow> {
+        let mut w = Rc::new(RefCell::new(XcbWindow {
             base: base,
+            weak_me: Weak::new(),
             shared_state: shared_state,
-            xcb_win: xcb_win,
+            xcb_win: 0,
             title: "".to_string(),
             rect: IRect::new(0, 0, 0, 0),
             last_known_state: window::State::Hidden,
             created: false,
-        }
+        }));
+        w.borrow_mut().weak_me = Rc::downgrade(&w);
     }
 
     fn conn(&self) -> &xcb::Connection {
@@ -271,6 +261,10 @@ impl XcbWindow {
     }
 
     fn create(&mut self) {
+        if self.created() { return; }
+
+        let xcb_win = self.shared_state.conn.generate_id();
+
         let (s, p);
         {
             let setup = self.conn().get_setup();
@@ -297,7 +291,7 @@ impl XcbWindow {
             ];
 
             let wc = xcb::create_window(self.conn(), xcb::COPY_FROM_PARENT as u8,
-                self.xcb_win, screen.root(), p.x as i16, p.y as i16,
+                xcb_win, screen.root(), p.x as i16, p.y as i16,
                 s.w as u16, s.h as u16, 0, xcb::WINDOW_CLASS_INPUT_OUTPUT as u16,
                 screen.root_visual(), &values);
 
@@ -306,7 +300,7 @@ impl XcbWindow {
 
             let values = [wm_delete_window];
             let dc = xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
-                    self.xcb_win, wm_protocols, xcb::ATOM_ATOM, 32, &values);
+                    xcb_win, wm_protocols, xcb::ATOM_ATOM, 32, &values);
 
             assert!(wc.request_check().is_ok(), "could not create xcb window");
             assert!(dc.request_check().is_ok(), "could not prepare xcb window deletion handling");
@@ -315,11 +309,13 @@ impl XcbWindow {
         // setup borrows self, so assignments must be after setup's lifetime
         self.last_known_state = window::State::Hidden;
         self.rect = IRect::new_ps(p, s);
-        self.created = true;
+        self.xcb_win = xcb_win;
         self.set_title_sys(&self.title);
+        let windows = self.shared_state.windows.borrow_mut();
+        windows.insert(self.xcb_win, self.weak_me.clone());
     }
 
-    fn created(&self) -> bool { self.created }
+    fn created(&self) -> bool { self.xcb_win != 0 }
 
     fn handle_configure_notify(&mut self, ev: &xcb::ConfigureNotifyEvent) {
         debug_assert!(self.created());
