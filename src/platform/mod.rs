@@ -8,6 +8,9 @@ pub mod win32platform;
 use ::RcCell;
 use window::{self, WindowBase};
 
+use std::rc::Rc;
+use std::ops::Deref;
+
 
 pub trait EventLoop {
     fn loop_events(&self) -> i32;
@@ -16,24 +19,31 @@ pub trait EventLoop {
 
 
 pub trait Platform : EventLoop {
-    fn create_window(&self, base: WindowBase)
-            -> RcCell<PlatformWindow>;
+    fn create_window(&self, base: RcCell<WindowBase>)
+            -> Rc<PlatformWindow>;
 }
 
 
 pub trait PlatformWindow {
-
-    fn base(&self) -> &WindowBase;
-    fn base_mut(&mut self) -> &mut WindowBase;
-
-    fn title(&self) -> String;
-    fn set_title(&mut self, title: String);
+    fn update_title(&self);
 
     fn state(&self) -> window::State;
-    fn set_state(&mut self, state: window::State);
+    fn set_state(&self, state: window::State);
 
-    fn close(&mut self);
-
+    fn close(&self);
 }
 
+impl Platform for Rc<Platform> {
+    fn create_window(&self, base: RcCell<WindowBase>) -> Rc<PlatformWindow> {
+        self.deref().create_window(base)
+    }
+}
 
+impl EventLoop for Rc<Platform> {
+    fn loop_events(&self) -> i32 {
+        self.deref().loop_events()
+    }
+    fn exit(&self, code: i32) {
+        self.deref().exit(code);
+    }
+}

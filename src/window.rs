@@ -1,5 +1,6 @@
 
 use geometry::ISize;
+use platform::{Platform, PlatformWindow};
 use ::RcCell;
 
 use std::rc::Rc;
@@ -18,6 +19,76 @@ pub enum State {
 define_handler!{OnCloseHandler: FnMut() => bool}
 define_handler!{OnResizeHandler: FnMut(new_size: ISize)}
 
+pub struct Window {
+    base: RcCell<WindowBase>,
+    pw: Rc<PlatformWindow>,
+}
+
+impl Window {
+    pub fn new(p: &Platform) -> Window {
+        let base = Rc::new(RefCell::new(WindowBase::new()));
+        let pw = p.create_window(base.clone());
+        Window {
+            base: base,
+            pw: pw,
+        }
+    }
+
+    pub fn title(&self) -> String {
+        self.base.borrow().title.clone()
+    }
+    pub fn set_title(&mut self, title: String) {
+        if title != self.base.borrow().title {
+            self.base.borrow_mut().title = title;
+            self.pw.update_title();
+        }
+    }
+
+
+    pub fn show_normal(&mut self) {
+        self.set_state(State::Normal);
+    }
+
+    pub fn show_minimized(&mut self) {
+        self.set_state(State::Minimized);
+    }
+
+    pub fn show_maximized(&mut self) {
+        self.set_state(State::Maximized);
+    }
+
+    pub fn show_fullscreen(&mut self) {
+        self.set_state(State::Fullscreen);
+    }
+
+    pub fn hide(&mut self) {
+        self.set_state(State::Hidden);
+    }
+
+    pub fn state(&self) -> State {
+        self.pw.state()
+    }
+    pub fn set_state(&mut self, state: State) {
+        self.pw.set_state(state);
+    }
+
+    pub fn on_close(&self) -> RcCell<OnCloseHandler> {
+        self.base.borrow().on_close()
+    }
+
+    pub fn on_resize(&self) -> RcCell<OnResizeHandler> {
+        self.base.borrow().on_resize()
+    }
+}
+
+impl Clone for Window {
+    fn clone(&self) -> Window {
+        Window {
+            base: self.base.clone(),
+            pw: self.pw.clone(),
+        }
+    }
+}
 //pub trait Window {
 //
 //    fn base(&self) -> &WindowBase;
@@ -63,16 +134,30 @@ define_handler!{OnResizeHandler: FnMut(new_size: ISize)}
 
 
 pub struct WindowBase {
-    pub on_close: RcCell<OnCloseHandler>,
-    pub on_resize: RcCell<OnResizeHandler>,
+    title: String,
+    on_close: RcCell<OnCloseHandler>,
+    on_resize: RcCell<OnResizeHandler>,
 }
 
 impl WindowBase {
     pub fn new() -> WindowBase {
         WindowBase {
+            title: String::new(),
             on_close: Rc::new(RefCell::new(OnCloseHandler::new())),
             on_resize: Rc::new(RefCell::new(OnResizeHandler::new())),
         }
+    }
+
+    pub fn title(&self) -> String {
+        self.title.clone()
+    }
+
+    pub fn on_close(&self) -> RcCell<OnCloseHandler> {
+        self.on_close.clone()
+    }
+
+    pub fn on_resize(&self) -> RcCell<OnResizeHandler> {
+        self.on_resize.clone()
     }
 }
 

@@ -65,7 +65,7 @@ impl Area for RECT {
 
 
 struct Win32SharedPlatform {
-    windows: RefCell<HashMap<HWND, WeakCell<Win32Window>>>,
+    windows: RefCell<HashMap<HWND, Weak<Win32Window>>>,
     registered_cls: RefCell<HashSet<Vec<u16>>>,
     exit_code: Cell<Option<i32>>,
 }
@@ -87,7 +87,7 @@ impl Win32Platform {
 }
 
 impl Platform for Win32Platform {
-    fn create_window(&self, base: WindowBase) -> RcCell<PlatformWindow> {
+    fn create_window(&self, base: RcCell<WindowBase>) -> Rc<PlatformWindow> {
         Win32Window::new(base, self.shared_platform.clone())
     }
 }
@@ -137,11 +137,11 @@ impl Win32SharedPlatform {
         if let Some(w) = self.window(hwnd) {
             match msg {
                 WM_SIZE => {
-                    w.borrow_mut().handle_wm_size(wparam, lparam)
+                    w.handle_wm_size(wparam, lparam)
                 },
                 WM_CLOSE => {
-                    if fire_or!(w.borrow().base.on_close.clone(), true) {
-                        w.borrow_mut().close();
+                    if fire_or!(w.base.borrow().on_close(), true) {
+                        w.close();
                         if self.windows.borrow().is_empty()
                                 && self.exit_code.get().is_none() {
                             self.exit_code.set(Some(0));
@@ -158,7 +158,7 @@ impl Win32SharedPlatform {
         }
     }
 
-    fn window(&self, hwnd: HWND) -> Option<RcCell<Win32Window>> {
+    fn window(&self, hwnd: HWND) -> Option<Rc<Win32Window>> {
         self.windows.borrow().get(&hwnd).and_then(|ww| Weak::upgrade(&ww))
     }
 
@@ -166,10 +166,12 @@ impl Win32SharedPlatform {
     fn register_wnd_cls(&self) -> Vec<u16> {
         let cn_u8 = "OwsWindowClassName";
         let cls_name = to_u16(&cn_u8);
-        if self.registered_cls.borrow().contains(&cls_name) {
-            cls_name.clone()
+        {
+            if self.registered_cls.borrow().contains(&cls_name) {
+                return cls_name.clone();
+            }
         }
-        else { unsafe {
+        unsafe {
             let hinstance = GetModuleHandleW(ptr::null());
             let wc = WNDCLASSEXW {
                 cbSize: mem::size_of::<WNDCLASSEXW>() as UINT,
@@ -190,36 +192,37 @@ impl Win32SharedPlatform {
             }
             self.registered_cls.borrow_mut().insert(cls_name.clone());
             cls_name
-        }}
+        }
     }
 }
 
 
 pub struct Win32Window {
-    base: WindowBase,
-    weak_me: WeakCell<Win32Window>,
+    base: RcCell<WindowBase>,
+    weak_me: RefCell<Weak<Win32Window>>,
     shared_platform: Rc<Win32SharedPlatform>,
-    hwnd: HWND,
-    title: String,
-    rect: IRect,
+    hwnd: Cell<HWND>,
+    rect: Cell<IRect>,
 }
 
 impl Win32Window {
-    fn new(base: WindowBase, shared_platform: Rc<Win32SharedPlatform>) -> RcCell<Win32Window> {
-        let w = Rc::new(RefCell::new(Win32Window {
+    fn new(base: RcCell<WindowBase>, shared_platform: Rc<Win32SharedPlatform>) -> Rc<Win32Window> {
+        let w = Rc::new(Win32Window {
             base: base,
-            weak_me: Weak::new(),
+            weak_me: RefCell::new(Weak::new()),
             shared_platform: shared_platform,
-            hwnd: ptr::null_mut(),
-            title: String::new(),
-            rect: IRect::new(0, 0, 0, 0),
-        }));
-        w.borrow_mut().weak_me = Rc::downgrade(&w);
+            hwnd: Cell::new(ptr::null_mut()),
+            rect: Cell::new(IRect::new(0, 0, 0, 0)),
+        });
+        {
+            let mut weak = w.weak_me.borrow_mut();
+            (*weak) = Rc::downgrade(&w);
+        }
         w
     }
-    fn create(&mut self) {
+    fn create(&self) {
         let cls_name = self.shared_platform.register_wnd_cls();
-        let title = to_u16(&self.title);
+        let title = to_u16(&self.base.borrow().title());
         let hwnd = unsafe {
             let hinstance = GetModuleHandleW(ptr::null());
             let hwnd = CreateWindowExW(
@@ -241,15 +244,16 @@ impl Win32Window {
             set_window_long_ptr(hwnd, 0, mem::transmute(spbox));
             hwnd
         };
+        self.hwnd.set(hwnd);
         self.shared_platform.windows.borrow_mut()
-                .insert(hwnd, self.weak_me.clone());
+                .insert(hwnd, self.weak_me.borrow().clone());
     }
 
     fn created(&self) -> bool {
-        !self.hwnd.is_null()
+        !self.hwnd.get().is_null()
     }
 
-    fn handle_wm_size(&mut self, wparam: WPARAM, lparam: LPARAM) -> bool {
+    fn handle_wm_size(&self, wparam: WPARAM, lparam: LPARAM) -> bool {
         match wparam as u32 {
             SIZE_MAXSHOW | SIZE_MAXHIDE => { false },
             SIZE_MINIMIZED => {
@@ -269,14 +273,14 @@ impl Win32Window {
         }
     }
 
-    fn handle_rect_change(&mut self) {
-        let old_r = self.rect;
+    fn handle_rect_change(&self) {
+        let old_r = self.rect.get();
         let r = self.rect_sys();
 
-        self.rect = r;
+        self.rect.set(r);
 
         if old_r.size() != r.size() {
-            fire!(self.base.on_resize.clone(), r.size());
+            fire!(self.base.borrow().on_resize(), r.size());
         }
         if old_r.point() != r.point() {
             // move
@@ -286,7 +290,7 @@ impl Win32Window {
     fn rect_sys(&self) -> IRect {
         unsafe {
 			let mut wr = mem::uninitialized::<RECT>();
-			GetWindowRect(self.hwnd, &mut wr);
+			GetWindowRect(self.hwnd.get(), &mut wr);
 
 			let mut ar = RECT { left: 0, top: 0, right: 0, bottom: 0};
 			AdjustWindowRectEx(&mut ar, self.style(), 0, self.ex_style());
@@ -301,52 +305,46 @@ impl Win32Window {
     }
 
     fn style(&self) -> DWORD {
-        unsafe { GetWindowLongW(self.hwnd, GWL_STYLE) as DWORD }
+        unsafe { GetWindowLongW(self.hwnd.get(), GWL_STYLE) as DWORD }
     }
     fn ex_style(&self) -> DWORD {
-        unsafe { GetWindowLongW(self.hwnd, GWL_EXSTYLE) as DWORD }
+        unsafe { GetWindowLongW(self.hwnd.get(), GWL_EXSTYLE) as DWORD }
     }
 }
 
 impl PlatformWindow for Win32Window {
-    fn base(&self) -> &WindowBase {
-        &self.base
-    }
-    fn base_mut(&mut self) -> &mut WindowBase {
-        &mut self.base
-    }
-
-    fn title(&self) -> String {
-        self.title.clone()
-    }
-    fn set_title(&mut self, title: String) {
-        self.title = title;
-        let title = to_u16(&self.title);
-        unsafe { SetWindowTextW(self.hwnd, title.as_ptr()); }
+    fn update_title(&self) {
+        let title = to_u16(&self.base.borrow().title());
+        unsafe { SetWindowTextW(self.hwnd.get(), title.as_ptr()); }
     }
 
     fn state(&self) -> State {
         State::Hidden
     }
-    fn set_state(&mut self, state: State) {
-        unsafe { ShowWindow(self.hwnd, SW_SHOWNORMAL); }
+    fn set_state(&self, state: State) {
+        if !self.created() { self.create(); }
+        unsafe {
+            ShowWindow(self.hwnd.get(), SW_NORMAL);
+            //PostMessageW(self.hwnd, WM_SYSCOMMAND, 0xF120, 0);
+            //PostMessageW(self.hwnd, WM_SHOWWINDOW, 99, 99);
+        }
     }
 
-    fn close(&mut self) {
+    fn close(&self) {
         if self.created() {
             {
                 let mut windows = self.shared_platform.windows.borrow_mut();
-                windows.remove(&self.hwnd);
+                windows.remove(&self.hwnd.get());
             }
             unsafe {
-                let spbox = get_window_long_ptr(self.hwnd, 0);
-                let spbox: *mut WeakCell<Win32SharedPlatform> = mem::transmute(spbox);
+                let spbox = get_window_long_ptr(self.hwnd.get(), 0);
+                let spbox: *mut Weak<Win32SharedPlatform> = mem::transmute(spbox);
                 assert!(!spbox.is_null());
-                let spbox = Box::from_raw(spbox);
-                set_window_long_ptr(self.hwnd, 0, 0);
-                DestroyWindow(self.hwnd);
+                let _ = Box::from_raw(spbox);
+                set_window_long_ptr(self.hwnd.get(), 0, 0);
+                DestroyWindow(self.hwnd.get());
             }
-            self.hwnd = ptr::null_mut();
+            self.hwnd.set(ptr::null_mut());
         }
     }
 }

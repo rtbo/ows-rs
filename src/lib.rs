@@ -36,19 +36,19 @@ pub mod key;
 pub mod mouse;
 
 pub use platform::*;
-//pub use window::Window;
+pub use window::Window;
 
 pub type RcCell<T> = Rc<RefCell<T>>;
 pub type WeakCell<T> = Weak<RefCell<T>>;
 
 #[cfg(target_os="linux")]
-pub fn default_platform() -> Option<Box<Platform>> {
+pub fn default_platform() -> Option<Rc<Platform>> {
     use platform::xcbplatform::XcbPlatform;
-    XcbPlatform::new().map(|p| Box::new(p) as Box<Platform>)
+    XcbPlatform::new().map(|p| Rc::new(p))
 }
 
 #[cfg(target_os="windows")]
-pub fn default_platform() -> Option<Box<Platform>> {
+pub fn default_platform() -> Option<Rc<Platform>> {
     use platform::win32platform::Win32Platform;
-    Some(Box::new(Win32Platform::new()))
+    Some(Rc::new(Win32Platform::new()))
 }

@@ -71,7 +71,7 @@ struct XcbSharedState {
     conn: xcb::Connection,
     def_screen: usize,
     atoms: HashMap<Atom, xcb::Atom>,
-    windows: RefCell<HashMap<xcb::Window, WeakCell<XcbWindow>>>,
+    windows: RefCell<HashMap<xcb::Window, Weak<XcbWindow>>>,
 }
 
 impl XcbSharedState {
@@ -151,9 +151,9 @@ impl XcbPlatform {
         self.shared_state.atom(atom)
     }
 
-    fn window(&self, xcb_win: xcb::Window) -> Option<RcCell<XcbWindow>> {
+    fn window(&self, xcb_win: xcb::Window) -> Option<Rc<XcbWindow>> {
         let windows = self.shared_state.windows.borrow();
-        windows.get(&xcb_win).and_then(|ww| Weak::upgrade(&ww))
+        windows.get(&xcb_win.get()).and_then(|ww| Weak::upgrade(&ww))
     }
 
     fn handle_client_message(&self, ev: &xcb::ClientMessageEvent) {
@@ -164,8 +164,8 @@ impl XcbPlatform {
             let protocol = ev.data().data32()[0];
             if protocol == wm_delete_window {
                 if let Some(w) = self.window(ev.window()) {
-                    if { fire_or!(w.borrow().base.on_close.clone(), true) } {
-                        w.borrow_mut().close();
+                    if { fire_or!(w.base.borrow().on_close(), true) } {
+                        w.close();
                         if self.shared_state.windows.borrow().is_empty() &&
                                 self.exit_code.get().is_none() {
                             self.exit_code.set(Some(0));
@@ -178,13 +178,13 @@ impl XcbPlatform {
 
     fn handle_configure_notify(&self, ev: &xcb::ConfigureNotifyEvent) {
         let w = self.window(ev.event());
-        w.borrow_mut().handle_configure_notify(&ev);
+        w.handle_configure_notify(&ev);
     }
 }
 
 
 impl Platform for XcbPlatform {
-    fn create_window(&self, base: WindowBase) -> RcCell<PlatformWindow> {
+    fn create_window(&self, base: RcCell<WindowBase>) -> Rc<PlatformWindow> {
         XcbWindow::new(base, self.shared_state.clone())
     }
 }
@@ -219,29 +219,31 @@ impl EventLoop for XcbPlatform {
 
 pub struct XcbWindow {
     base: WindowBase,
-    weak_me: WeakCell<XcbWindow>,
+    weak_me: RefCell<Weak<XcbWindow>>,
     shared_state: Rc<XcbSharedState>,
-    xcb_win: xcb::Window,
-    title: String,
-    rect: IRect,
-    last_known_state: window::State,
-    created: bool,
+    xcb_win: Cell<xcb::Window>,
+    rect: Cell<IRect>,
+    last_known_state: Cell<window::State>,
+    created: Cell<bool>,
 }
 
 
 impl XcbWindow {
-    fn new(base: WindowBase, shared_state: Rc<XcbSharedState>) -> RefCell<XcbWindow> {
-        let mut w = Rc::new(RefCell::new(XcbWindow {
+    fn new(base: RcCell<WindowBase>, shared_state: Rc<XcbSharedState>) -> Rc<XcbWindow> {
+        let mut w = Rc::new(XcbWindow {
             base: base,
             weak_me: Weak::new(),
             shared_state: shared_state,
-            xcb_win: 0,
-            title: String::new(),
-            rect: IRect::new(0, 0, 0, 0),
-            last_known_state: window::State::Hidden,
-            created: false,
-        }));
-        w.borrow_mut().weak_me = Rc::downgrade(&w);
+            xcb_win: Cell::new(0),
+            rect: Cell::new(IRect::new(0, 0, 0, 0)),
+            last_known_state: Cell::new(window::State::Hidden),
+            created: Cell::new(false),
+        });
+        {
+            let mut weak = w.weak_me.borrow_mut();
+            (*weak) = Rc::downgrade(&w);
+        }
+        w
     }
 
     fn conn(&self) -> &xcb::Connection {
@@ -262,7 +264,7 @@ impl XcbWindow {
         setup.roots().nth(self.shared_state.def_screen).unwrap().root()
     }
 
-    fn create(&mut self) {
+    fn create(&self) {
         if self.created() { return; }
 
         let xcb_win = self.shared_state.conn.generate_id();
@@ -309,49 +311,45 @@ impl XcbWindow {
         }
 
         // setup borrows self, so assignments must be after setup's lifetime
-        self.last_known_state = window::State::Hidden;
-        self.rect = IRect::new_ps(p, s);
-        self.xcb_win = xcb_win;
+        self.last_known_state.set(window::State::Hidden);
+        self.rect.set(IRect::new_ps(p, s));
+        self.xcb_win.set(xcb_win);
         {
             let windows = self.shared_state.windows.borrow_mut();
-            windows.insert(self.xcb_win, self.weak_me.clone());
+            windows.insert(self.xcb_win.get(), self.weak_me.borrow().clone());
         }
-        self.created = true;
-        self.set_title_sys(&self.title);
+        self.created.set(true);
+        self.update_title();
     }
 
-    fn created(&self) -> bool { self.created }
+    fn created(&self) -> bool { self.created.get() }
 
-    fn handle_configure_notify(&mut self, ev: &xcb::ConfigureNotifyEvent) {
+    fn handle_configure_notify(&self, ev: &xcb::ConfigureNotifyEvent) {
         debug_assert!(self.created());
+        let old_r = self.rect.get();
 
         let new_pos = self.get_position_sys().unwrap_or(
             IPoint::new(ev.x() as i32, ev.y() as i32)
         );
-        if new_pos != self.rect.point() {
+        if new_pos != old_r.point() {
         }
 
         let new_size = ISize::new(ev.width() as i32, ev.height() as i32);
-        if new_size != self.rect.size() {
-            fire!(self.base.on_resize.clone(), new_size);
+        if new_size != old_r.size() {
+            fire!(self.base.borrow().on_resize(), new_size);
         }
 
-        self.rect = IRect::new_ps(new_pos, new_size);
+        self.rect.set(IRect::new_ps(new_pos, new_size));
     }
 
     fn set_title_sys(&self, title: &str) {
-        debug_assert!(self.created());
-        xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
-            self.xcb_win, xcb::ATOM_WM_NAME, xcb::ATOM_STRING, 8, title.as_bytes());
-        xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
-            self.xcb_win, xcb::ATOM_WM_ICON_NAME, xcb::ATOM_STRING, 8, title.as_bytes());
     }
 
     fn get_position_sys(&self) -> Option<IPoint> {
         debug_assert!(self.created());
 
         let cookie = xcb::translate_coordinates(self.conn(),
-            self.xcb_win, self.def_screen_root(), 0, 0);
+            self.xcb_win.get(), self.def_screen_root(), 0, 0);
         cookie.get_reply().ok().map(|r| {
             IPoint::new(r.dst_x() as i32, r.dst_y() as i32)
         })
@@ -361,7 +359,7 @@ impl XcbWindow {
         debug_assert!(self.created());
 
         let cookie = xcb::get_property(self.conn(), false,
-                self.xcb_win, self.atom(Atom::_NET_WM_STATE),
+                self.xcb_win.get(), self.atom(Atom::_NET_WM_STATE),
                 xcb::ATOM_ATOM, 0, 1024);
         let mut res: u32 = NET_WM_STATE_NONE;
         if let Ok(reply) = cookie.get_reply() {
@@ -417,7 +415,7 @@ impl XcbWindow {
         debug_assert!(self.created());
 
         let ev = xcb::ClientMessageEvent::new(
-                32, self.xcb_win, self.atom(Atom::_NET_WM_STATE),
+                32, self.xcb_win.get(), self.atom(Atom::_NET_WM_STATE),
                 xcb::ClientMessageData::from_data32([
                     if yes { 1 }else { 0 },
                     atom1, atom2, 0, 0
@@ -435,19 +433,15 @@ impl XcbWindow {
 
 impl PlatformWindow for XcbWindow {
 
-    fn base(&self) -> &WindowBase { &self.base }
-    fn base_mut(&mut self) -> &mut WindowBase { &mut self.base }
+    fn update_title(&self) {
+        debug_assert!(self.created());
+        let title = base.borrow().title();
+        xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
+            self.xcb_win.get(), xcb::ATOM_WM_NAME, xcb::ATOM_STRING, 8, title.as_bytes());
+        xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
+            self.xcb_win.get(), xcb::ATOM_WM_ICON_NAME, xcb::ATOM_STRING, 8, title.as_bytes());
+    }
 
-    fn title(&self) -> String {
-        self.title.clone()
-    }
-    fn set_title(&mut self, title: String) {
-        self.title = title;
-        if self.created() {
-            self.set_title_sys(&self.title);
-            self.conn().flush();
-        }
-    }
     fn state(&self) -> window::State {
         if !self.created() {
             window::State::Hidden
@@ -457,7 +451,7 @@ impl PlatformWindow for XcbWindow {
 
             // checking for minimized
             let cookie = xcb::get_property_unchecked(self.conn(), false,
-                    self.xcb_win, wm_state_atom, xcb::ATOM_ANY,
+                    self.xcb_win.get(), wm_state_atom, xcb::ATOM_ANY,
                     0, 1024);
             if let Ok(reply) = cookie.get_reply() {
                 if reply.format() == 32 && reply.type_() == wm_state_atom {
@@ -490,13 +484,13 @@ impl PlatformWindow for XcbWindow {
         }
     }
 
-    fn set_state(&mut self, state: window::State) {
+    fn set_state(&self, state: window::State) {
         if !self.created() { self.create(); }
 
-        if self.last_known_state == state { return; }
+        if self.last_known_state.get() == state { return; }
 
         // removing attribute that makes other than normal
-        match self.last_known_state {
+        match self.last_known_state.get() {
             window::State::Maximized => {
                 self.set_wm_state(false,
                     self.atom(Atom::_NET_WM_STATE_MAXIMIZED_HORZ),
@@ -507,7 +501,7 @@ impl PlatformWindow for XcbWindow {
                     self.atom(Atom::_NET_WM_STATE_FULLSCREEN), 0);
             },
             window::State::Minimized | window::State::Hidden => {
-                xcb::map_window(self.conn(), self.xcb_win);
+                xcb::map_window(self.conn(), self.xcb_win.get());
             },
             _ => {}
         }
@@ -515,7 +509,7 @@ impl PlatformWindow for XcbWindow {
         // at this point the window is in normal mode
         match state {
             window::State::Minimized => {
-                let ev = xcb::ClientMessageEvent::new(32, self.xcb_win,
+                let ev = xcb::ClientMessageEvent::new(32, self.xcb_win.get(),
                     self.atom(Atom::WM_CHANGE_STATE),
                     xcb::ClientMessageData::from_data32([
                         XCB_ICCCM_WM_STATE_ICONIC, 0, 0, 0, 0
@@ -538,25 +532,25 @@ impl PlatformWindow for XcbWindow {
                     self.atom(Atom::_NET_WM_STATE_FULLSCREEN), 0);
             },
             window::State::Hidden => {
-                xcb::unmap_window(self.conn(), self.xcb_win);
+                xcb::unmap_window(self.conn(), self.xcb_win.get());
             },
             _ => {}
         }
         self.conn().flush();
     }
 
-    fn close(&mut self) {
+    fn close(&self) {
         if self.created() {
-            if self.last_known_state != window::State::Hidden {
-                xcb::unmap_window(self.conn(), self.xcb_win);
+            if self.last_known_state.get() != window::State::Hidden {
+                xcb::unmap_window(self.conn(), self.xcb_win.get());
             }
-            xcb::destroy_window(self.conn(), self.xcb_win);
-            self.created = false;
+            xcb::destroy_window(self.conn(), self.xcb_win.get());
+            self.created.set(false);
             {
                 let windows = self.shared_state.windows.borrow_mut();
-                windows.remove(self.xcb_win);
+                windows.remove(self.xcb_win.get());
             }
-            self.xcb_win = 0;
+            self.xcb_win.set(0);
             self.conn.flush();
         }
     }
