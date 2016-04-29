@@ -153,7 +153,7 @@ impl XcbPlatform {
 
     fn window(&self, xcb_win: xcb::Window) -> Option<Rc<XcbWindow>> {
         let windows = self.shared_state.windows.borrow();
-        windows.get(&xcb_win.get()).and_then(|ww| Weak::upgrade(&ww))
+        windows.get(&xcb_win).and_then(|ww| Weak::upgrade(&ww))
     }
 
     fn handle_client_message(&self, ev: &xcb::ClientMessageEvent) {
@@ -177,8 +177,9 @@ impl XcbPlatform {
     }
 
     fn handle_configure_notify(&self, ev: &xcb::ConfigureNotifyEvent) {
-        let w = self.window(ev.event());
-        w.handle_configure_notify(&ev);
+        if let Some(w) = self.window(ev.event()) {
+            w.handle_configure_notify(&ev);
+        }
     }
 }
 
@@ -218,7 +219,7 @@ impl EventLoop for XcbPlatform {
 
 
 pub struct XcbWindow {
-    base: WindowBase,
+    base: RcCell<WindowBase>,
     weak_me: RefCell<Weak<XcbWindow>>,
     shared_state: Rc<XcbSharedState>,
     xcb_win: Cell<xcb::Window>,
@@ -232,7 +233,7 @@ impl XcbWindow {
     fn new(base: RcCell<WindowBase>, shared_state: Rc<XcbSharedState>) -> Rc<XcbWindow> {
         let mut w = Rc::new(XcbWindow {
             base: base,
-            weak_me: Weak::new(),
+            weak_me: RefCell::new(Weak::new()),
             shared_state: shared_state,
             xcb_win: Cell::new(0),
             rect: Cell::new(IRect::new(0, 0, 0, 0)),
@@ -315,7 +316,7 @@ impl XcbWindow {
         self.rect.set(IRect::new_ps(p, s));
         self.xcb_win.set(xcb_win);
         {
-            let windows = self.shared_state.windows.borrow_mut();
+            let mut windows = self.shared_state.windows.borrow_mut();
             windows.insert(self.xcb_win.get(), self.weak_me.borrow().clone());
         }
         self.created.set(true);
@@ -340,9 +341,6 @@ impl XcbWindow {
         }
 
         self.rect.set(IRect::new_ps(new_pos, new_size));
-    }
-
-    fn set_title_sys(&self, title: &str) {
     }
 
     fn get_position_sys(&self) -> Option<IPoint> {
@@ -434,12 +432,13 @@ impl XcbWindow {
 impl PlatformWindow for XcbWindow {
 
     fn update_title(&self) {
-        debug_assert!(self.created());
-        let title = base.borrow().title();
-        xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
-            self.xcb_win.get(), xcb::ATOM_WM_NAME, xcb::ATOM_STRING, 8, title.as_bytes());
-        xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
-            self.xcb_win.get(), xcb::ATOM_WM_ICON_NAME, xcb::ATOM_STRING, 8, title.as_bytes());
+        if self.created() {
+            let title = self.base.borrow().title();
+            xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
+                self.xcb_win.get(), xcb::ATOM_WM_NAME, xcb::ATOM_STRING, 8, title.as_bytes());
+            xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
+                self.xcb_win.get(), xcb::ATOM_WM_ICON_NAME, xcb::ATOM_STRING, 8, title.as_bytes());
+        }
     }
 
     fn state(&self) -> window::State {
@@ -547,11 +546,11 @@ impl PlatformWindow for XcbWindow {
             xcb::destroy_window(self.conn(), self.xcb_win.get());
             self.created.set(false);
             {
-                let windows = self.shared_state.windows.borrow_mut();
-                windows.remove(self.xcb_win.get());
+                let mut windows = self.shared_state.windows.borrow_mut();
+                windows.remove(&self.xcb_win.get());
             }
             self.xcb_win.set(0);
-            self.conn.flush();
+            self.conn().flush();
         }
     }
 }

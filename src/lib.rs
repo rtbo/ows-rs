@@ -44,7 +44,7 @@ pub type WeakCell<T> = Weak<RefCell<T>>;
 #[cfg(target_os="linux")]
 pub fn default_platform() -> Option<Rc<Platform>> {
     use platform::xcbplatform::XcbPlatform;
-    XcbPlatform::new().map(|p| Rc::new(p))
+    XcbPlatform::new().map(|p| Rc::new(p) as Rc<Platform>)
 }
 
 #[cfg(target_os="windows")]
