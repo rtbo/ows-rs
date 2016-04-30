@@ -25,10 +25,10 @@ pub trait Platform : EventLoop {
 
 
 pub trait PlatformWindow {
-    fn update_title(&self);
+    fn create(&self);
 
-    fn state(&self) -> window::State;
-    fn set_state(&self, state: window::State);
+    fn update_title(&self);
+    fn update_state(&self);
 
     fn close(&self);
 }

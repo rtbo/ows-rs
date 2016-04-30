@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate ows;
 
-use ows::{Window};
+use ows::{window, Window};
 
 fn main() {
     let p = ows::default_platform()
@@ -17,6 +17,7 @@ fn main() {
             println!("closing attempt n°{}. {}", attempts, comment);
             attempts == 2
         })
+        .state(window::State::Normal)
         .done(&p);
 
     {

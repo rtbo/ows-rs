@@ -140,7 +140,7 @@ impl Win32SharedPlatform {
                     w.handle_wm_size(wparam, lparam)
                 },
                 WM_CLOSE => {
-                    if fire_or!(w.base.borrow().on_close(), true) {
+                    if fire_or!(w.base.borrow().on_close.clone(), true) {
                         w.close();
                         if self.windows.borrow().is_empty()
                                 && self.exit_code.get().is_none() {
@@ -220,34 +220,6 @@ impl Win32Window {
         }
         w
     }
-    fn create(&self) {
-        let cls_name = self.shared_platform.register_wnd_cls();
-        let title = to_u16(&self.base.borrow().title());
-        let hwnd = unsafe {
-            let hinstance = GetModuleHandleW(ptr::null());
-            let hwnd = CreateWindowExW(
-                    WS_EX_CLIENTEDGE,
-                    cls_name.as_ptr(),
-                    title.as_ptr(),
-                    WS_OVERLAPPEDWINDOW,
-                    CW_USEDEFAULT,
-                    CW_USEDEFAULT,
-                    CW_USEDEFAULT,
-                    CW_USEDEFAULT,
-                    ptr::null_mut(), ptr::null_mut(),
-                    hinstance, ptr::null_mut());
-
-            assert!(!hwnd.is_null());
-            // shared_platform must be found by WindowProc through HWND
-            let spbox = Box::new(Rc::downgrade(&self.shared_platform));
-            let spbox = Box::into_raw(spbox);
-            set_window_long_ptr(hwnd, 0, mem::transmute(spbox));
-            hwnd
-        };
-        self.hwnd.set(hwnd);
-        self.shared_platform.windows.borrow_mut()
-                .insert(hwnd, self.weak_me.borrow().clone());
-    }
 
     fn created(&self) -> bool {
         !self.hwnd.get().is_null()
@@ -280,7 +252,7 @@ impl Win32Window {
         self.rect.set(r);
 
         if old_r.size() != r.size() {
-            fire!(self.base.borrow().on_resize(), r.size());
+            fire!(self.base.borrow().on_resize.clone(), r.size());
         }
         if old_r.point() != r.point() {
             // move
@@ -313,20 +285,46 @@ impl Win32Window {
 }
 
 impl PlatformWindow for Win32Window {
+
+    fn create(&self) {
+        let cls_name = self.shared_platform.register_wnd_cls();
+        let title = to_u16(&self.base.borrow().title);
+        let hwnd = unsafe {
+            let hinstance = GetModuleHandleW(ptr::null());
+            let hwnd = CreateWindowExW(
+                    WS_EX_CLIENTEDGE,
+                    cls_name.as_ptr(),
+                    title.as_ptr(),
+                    WS_OVERLAPPEDWINDOW,
+                    CW_USEDEFAULT,
+                    CW_USEDEFAULT,
+                    CW_USEDEFAULT,
+                    CW_USEDEFAULT,
+                    ptr::null_mut(), ptr::null_mut(),
+                    hinstance, ptr::null_mut());
+
+            assert!(!hwnd.is_null());
+            // shared_platform must be found by WindowProc through HWND
+            let spbox = Box::new(Rc::downgrade(&self.shared_platform));
+            let spbox = Box::into_raw(spbox);
+            set_window_long_ptr(hwnd, 0, mem::transmute(spbox));
+            hwnd
+        };
+        self.hwnd.set(hwnd);
+        self.shared_platform.windows.borrow_mut()
+                .insert(hwnd, self.weak_me.borrow().clone());
+        self.update_state();
+    }
+
     fn update_title(&self) {
-        let title = to_u16(&self.base.borrow().title());
+        let title = to_u16(&self.base.borrow().title);
         unsafe { SetWindowTextW(self.hwnd.get(), title.as_ptr()); }
     }
 
-    fn state(&self) -> State {
-        State::Hidden
-    }
-    fn set_state(&self, state: State) {
+    fn update_state(&self) {
         if !self.created() { self.create(); }
         unsafe {
             ShowWindow(self.hwnd.get(), SW_NORMAL);
-            //PostMessageW(self.hwnd, WM_SYSCOMMAND, 0xF120, 0);
-            //PostMessageW(self.hwnd, WM_SHOWWINDOW, 99, 99);
         }
     }
 

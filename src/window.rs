@@ -88,6 +88,16 @@ macro_rules! fire_or {
     }};
 }
 
+
+#[derive(Clone)]
+pub struct WindowBase {
+    pub title: String,
+    pub state: State,
+    pub on_close: RcCell<OnCloseHandler>,
+    pub on_resize: RcCell<OnResizeHandler>,
+}
+
+
 pub struct Window {
     base: RcCell<WindowBase>,
     pw: Rc<PlatformWindow>,
@@ -96,17 +106,14 @@ pub struct Window {
 impl Window {
     pub fn new() -> WindowBuilder {
         WindowBuilder {
-            base: WindowBase::new(),
+            base: WindowBase {
+                title: String::new(),
+                state: State::Normal,
+                on_close: Rc::new(RefCell::new(OnCloseHandler::new())),
+                on_resize: Rc::new(RefCell::new(OnResizeHandler::new())),
+            },
         }
     }
-    //pub fn new(p: &Platform) -> Window {
-    //    let base = Rc::new(RefCell::new(WindowBase::new()));
-    //    let pw = p.create_window(base.clone());
-    //    Window {
-    //        base: base,
-    //        pw: pw,
-    //    }
-    //}
 
     pub fn title(&self) -> String {
         self.base.borrow().title.clone()
@@ -119,39 +126,38 @@ impl Window {
     }
 
 
+    pub fn state(&self) -> State {
+        self.base.borrow().state
+    }
+    pub fn set_state(&mut self, state: State) {
+        if state != self.base.borrow().state {
+            self.base.borrow_mut().state = state;
+            self.pw.update_state();
+        }
+    }
     pub fn show_normal(&mut self) {
         self.set_state(State::Normal);
     }
-
     pub fn show_minimized(&mut self) {
         self.set_state(State::Minimized);
     }
-
     pub fn show_maximized(&mut self) {
         self.set_state(State::Maximized);
     }
-
     pub fn show_fullscreen(&mut self) {
         self.set_state(State::Fullscreen);
     }
-
     pub fn hide(&mut self) {
         self.set_state(State::Hidden);
     }
 
-    pub fn state(&self) -> State {
-        self.pw.state()
-    }
-    pub fn set_state(&mut self, state: State) {
-        self.pw.set_state(state);
-    }
 
     pub fn on_close(&self) -> RcCell<OnCloseHandler> {
-        self.base.borrow().on_close()
+        self.base.borrow().on_close.clone()
     }
 
     pub fn on_resize(&self) -> RcCell<OnResizeHandler> {
-        self.base.borrow().on_resize()
+        self.base.borrow().on_resize.clone()
     }
 }
 
@@ -164,33 +170,6 @@ impl Clone for Window {
     }
 }
 
-pub struct WindowBase {
-    title: String,
-    on_close: RcCell<OnCloseHandler>,
-    on_resize: RcCell<OnResizeHandler>,
-}
-
-impl WindowBase {
-    pub fn new() -> WindowBase {
-        WindowBase {
-            title: String::new(),
-            on_close: Rc::new(RefCell::new(OnCloseHandler::new())),
-            on_resize: Rc::new(RefCell::new(OnResizeHandler::new())),
-        }
-    }
-
-    pub fn title(&self) -> String {
-        self.title.clone()
-    }
-
-    pub fn on_close(&self) -> RcCell<OnCloseHandler> {
-        self.on_close.clone()
-    }
-
-    pub fn on_resize(&self) -> RcCell<OnResizeHandler> {
-        self.on_resize.clone()
-    }
-}
 
 
 pub struct WindowBuilder {
@@ -203,6 +182,7 @@ impl WindowBuilder {
     pub fn done(self, p: &Platform) -> Window {
         let base = Rc::new(RefCell::new(self.base));
         let pw = p.create_window(base.clone());
+        pw.create();
         Window {
             base: base,
             pw: pw,
@@ -214,15 +194,20 @@ impl WindowBuilder {
         self
     }
 
-    pub fn on_close<F>(mut self, f: F) -> WindowBuilder
-    where F: 'static + FnMut() -> bool {
-        handler_do!(self.base.on_close(), f);
+    pub fn state(mut self, state: State) -> WindowBuilder {
+        self.base.state = state;
         self
     }
 
-    pub fn on_resize<F>(mut self, f: F) -> WindowBuilder
+    pub fn on_close<F>(self, f: F) -> WindowBuilder
+    where F: 'static + FnMut() -> bool {
+        handler_do!(self.base.on_close.clone(), f);
+        self
+    }
+
+    pub fn on_resize<F>(self, f: F) -> WindowBuilder
     where F: 'static + FnMut(ISize) {
-        handler_add!(self.base.on_resize(), f);
+        handler_add!(self.base.on_resize.clone(), f);
         self
     }
 }

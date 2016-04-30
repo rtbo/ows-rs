@@ -164,7 +164,7 @@ impl XcbPlatform {
             let protocol = ev.data().data32()[0];
             if protocol == wm_delete_window {
                 if let Some(w) = self.window(ev.window()) {
-                    if { fire_or!(w.base.borrow().on_close(), true) } {
+                    if { fire_or!(w.base.borrow().on_close.clone(), true) } {
                         w.close();
                         if self.shared_state.windows.borrow().is_empty() &&
                                 self.exit_code.get().is_none() {
@@ -265,63 +265,6 @@ impl XcbWindow {
         setup.roots().nth(self.shared_state.def_screen).unwrap().root()
     }
 
-    fn create(&self) {
-        if self.created() { return; }
-
-        let xcb_win = self.shared_state.conn.generate_id();
-
-        let (s, p);
-        {
-            let setup = self.conn().get_setup();
-            let screen = setup.roots().nth(self.shared_state.def_screen).unwrap();
-
-            s = ISize::new(640, 480);
-            p = IPoint::new(
-                (screen.width_in_pixels() as i32 - s.w) / 2,
-                (screen.height_in_pixels() as i32 - s.h) / 2);
-            let values = [
-                (xcb::CW_BACK_PIXEL,    screen.white_pixel()),
-
-                (xcb::CW_EVENT_MASK,    xcb::EVENT_MASK_KEY_PRESS |
-                                        xcb::EVENT_MASK_KEY_RELEASE |
-                                        xcb::EVENT_MASK_BUTTON_PRESS |
-                                        xcb::EVENT_MASK_BUTTON_RELEASE |
-                                        xcb::EVENT_MASK_ENTER_WINDOW |
-                                        xcb::EVENT_MASK_LEAVE_WINDOW |
-                                        xcb::EVENT_MASK_POINTER_MOTION |
-                                        xcb::EVENT_MASK_BUTTON_MOTION |
-                                        xcb::EVENT_MASK_EXPOSURE |
-                                        xcb::EVENT_MASK_STRUCTURE_NOTIFY |
-                                        xcb::EVENT_MASK_PROPERTY_CHANGE),
-            ];
-
-            let wc = xcb::create_window(self.conn(), xcb::COPY_FROM_PARENT as u8,
-                xcb_win, screen.root(), p.x as i16, p.y as i16,
-                s.w as u16, s.h as u16, 0, xcb::WINDOW_CLASS_INPUT_OUTPUT as u16,
-                screen.root_visual(), &values);
-
-            let wm_delete_window = self.atom(Atom::WM_DELETE_WINDOW);
-            let wm_protocols = self.atom(Atom::WM_PROTOCOLS);
-
-            let values = [wm_delete_window];
-            let dc = xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
-                    xcb_win, wm_protocols, xcb::ATOM_ATOM, 32, &values);
-
-            assert!(wc.request_check().is_ok(), "could not create xcb window");
-            assert!(dc.request_check().is_ok(), "could not prepare xcb window deletion handling");
-        }
-
-        // setup borrows self, so assignments must be after setup's lifetime
-        self.last_known_state.set(window::State::Hidden);
-        self.rect.set(IRect::new_ps(p, s));
-        self.xcb_win.set(xcb_win);
-        {
-            let mut windows = self.shared_state.windows.borrow_mut();
-            windows.insert(self.xcb_win.get(), self.weak_me.borrow().clone());
-        }
-        self.created.set(true);
-        self.update_title();
-    }
 
     fn created(&self) -> bool { self.created.get() }
 
@@ -337,7 +280,7 @@ impl XcbWindow {
 
         let new_size = ISize::new(ev.width() as i32, ev.height() as i32);
         if new_size != old_r.size() {
-            fire!(self.base.borrow().on_resize(), new_size);
+            fire!(self.base.borrow().on_resize.clone(), new_size);
         }
 
         self.rect.set(IRect::new_ps(new_pos, new_size));
@@ -351,6 +294,48 @@ impl XcbWindow {
         cookie.get_reply().ok().map(|r| {
             IPoint::new(r.dst_x() as i32, r.dst_y() as i32)
         })
+    }
+
+    fn get_state_sys(&self) -> window::State {
+        if !self.created() {
+            window::State::Hidden
+        }
+        else {
+            let wm_state_atom = self.atom(Atom::WM_STATE);
+
+            // checking for minimized
+            let cookie = xcb::get_property_unchecked(self.conn(), false,
+                    self.xcb_win.get(), wm_state_atom, xcb::ATOM_ANY,
+                    0, 1024);
+            if let Ok(reply) = cookie.get_reply() {
+                if reply.format() == 32 && reply.type_() == wm_state_atom {
+                    let value = reply.value();
+                    if value.len() > 0 {
+                        match value[0] {
+                            XCB_ICCCM_WM_STATE_WITHDRAWN => {
+                                return window::State::Hidden;
+                            },
+                            XCB_ICCCM_WM_STATE_ICONIC => {
+                                return window::State::Minimized;
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
+            let states = self.get_wm_states();
+            if (states & NET_WM_STATE_FULLSCREEN) != 0 {
+                window::State::Fullscreen
+            }
+            else if (states & NET_WM_STATE_MAXIMIZED) == NET_WM_STATE_MAXIMIZED {
+                window::State::Maximized
+            }
+            else {
+                // default to normal
+                window::State::Normal
+            }
+        }
     }
 
     fn get_wm_states(&self) -> u32 {
@@ -431,9 +416,70 @@ impl XcbWindow {
 
 impl PlatformWindow for XcbWindow {
 
+    fn create(&self) {
+        if self.created() { return; }
+
+        let xcb_win = self.shared_state.conn.generate_id();
+
+        let (s, p);
+        {
+            let setup = self.conn().get_setup();
+            let screen = setup.roots().nth(self.shared_state.def_screen).unwrap();
+
+            s = ISize::new(640, 480);
+            p = IPoint::new(
+                (screen.width_in_pixels() as i32 - s.w) / 2,
+                (screen.height_in_pixels() as i32 - s.h) / 2);
+            let values = [
+                (xcb::CW_BACK_PIXEL,    screen.white_pixel()),
+
+                (xcb::CW_EVENT_MASK,    xcb::EVENT_MASK_KEY_PRESS |
+                                        xcb::EVENT_MASK_KEY_RELEASE |
+                                        xcb::EVENT_MASK_BUTTON_PRESS |
+                                        xcb::EVENT_MASK_BUTTON_RELEASE |
+                                        xcb::EVENT_MASK_ENTER_WINDOW |
+                                        xcb::EVENT_MASK_LEAVE_WINDOW |
+                                        xcb::EVENT_MASK_POINTER_MOTION |
+                                        xcb::EVENT_MASK_BUTTON_MOTION |
+                                        xcb::EVENT_MASK_EXPOSURE |
+                                        xcb::EVENT_MASK_STRUCTURE_NOTIFY |
+                                        xcb::EVENT_MASK_PROPERTY_CHANGE),
+            ];
+
+            let wc = xcb::create_window(self.conn(), xcb::COPY_FROM_PARENT as u8,
+                xcb_win, screen.root(), p.x as i16, p.y as i16,
+                s.w as u16, s.h as u16, 0, xcb::WINDOW_CLASS_INPUT_OUTPUT as u16,
+                screen.root_visual(), &values);
+
+            let wm_delete_window = self.atom(Atom::WM_DELETE_WINDOW);
+            let wm_protocols = self.atom(Atom::WM_PROTOCOLS);
+
+            let values = [wm_delete_window];
+            let dc = xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
+                    xcb_win, wm_protocols, xcb::ATOM_ATOM, 32, &values);
+
+            assert!(wc.request_check().is_ok(), "could not create xcb window");
+            assert!(dc.request_check().is_ok(), "could not prepare xcb window deletion handling");
+        }
+
+        // setup borrows self, so assignments must be after setup's lifetime
+        self.last_known_state.set(window::State::Hidden);
+        self.rect.set(IRect::new_ps(p, s));
+        self.xcb_win.set(xcb_win);
+        {
+            let mut windows = self.shared_state.windows.borrow_mut();
+            windows.insert(self.xcb_win.get(), self.weak_me.borrow().clone());
+        }
+        self.created.set(true);
+        self.update_title();
+        self.update_state();
+    }
+
+
     fn update_title(&self) {
         if self.created() {
-            let title = self.base.borrow().title();
+            let base = self.base.borrow();
+            let title = &base.title;
             xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
                 self.xcb_win.get(), xcb::ATOM_WM_NAME, xcb::ATOM_STRING, 8, title.as_bytes());
             xcb::change_property(self.conn(), xcb::PROP_MODE_REPLACE as u8,
@@ -441,55 +487,19 @@ impl PlatformWindow for XcbWindow {
         }
     }
 
-    fn state(&self) -> window::State {
-        if !self.created() {
-            window::State::Hidden
-        }
-        else {
-            let wm_state_atom = self.atom(Atom::WM_STATE);
 
-            // checking for minimized
-            let cookie = xcb::get_property_unchecked(self.conn(), false,
-                    self.xcb_win.get(), wm_state_atom, xcb::ATOM_ANY,
-                    0, 1024);
-            if let Ok(reply) = cookie.get_reply() {
-                if reply.format() == 32 && reply.type_() == wm_state_atom {
-                    let value = reply.value();
-                    if value.len() > 0 {
-                        match value[0] {
-                            XCB_ICCCM_WM_STATE_WITHDRAWN => {
-                                return window::State::Hidden;
-                            },
-                            XCB_ICCCM_WM_STATE_ICONIC => {
-                                return window::State::Minimized;
-                            },
-                            _ => {}
-                        }
-                    }
-                }
-            }
+    fn update_state(&self) {
 
-            let states = self.get_wm_states();
-            if (states & NET_WM_STATE_FULLSCREEN) != 0 {
-                window::State::Fullscreen
-            }
-            else if (states & NET_WM_STATE_MAXIMIZED) == NET_WM_STATE_MAXIMIZED {
-                window::State::Maximized
-            }
-            else {
-                // default to normal
-                window::State::Normal
-            }
-        }
-    }
+        if !self.created() { return; }
 
-    fn set_state(&self, state: window::State) {
-        if !self.created() { self.create(); }
+        let new_state = self.base.borrow().state;
+        let old_state = self.last_known_state.get();
 
-        if self.last_known_state.get() == state { return; }
+        if new_state == old_state { return; }
+
 
         // removing attribute that makes other than normal
-        match self.last_known_state.get() {
+        match old_state {
             window::State::Maximized => {
                 self.set_wm_state(false,
                     self.atom(Atom::_NET_WM_STATE_MAXIMIZED_HORZ),
@@ -506,7 +516,7 @@ impl PlatformWindow for XcbWindow {
         }
 
         // at this point the window is in normal mode
-        match state {
+        match new_state {
             window::State::Minimized => {
                 let ev = xcb::ClientMessageEvent::new(32, self.xcb_win.get(),
                     self.atom(Atom::WM_CHANGE_STATE),
@@ -537,6 +547,7 @@ impl PlatformWindow for XcbWindow {
         }
         self.conn().flush();
     }
+
 
     fn close(&self) {
         if self.created() {
