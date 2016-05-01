@@ -17,76 +17,8 @@ pub enum State {
 }
 
 define_handler!{OnCloseHandler: FnMut(w: Window) => bool}
-define_handler!{OnResizeHandler: FnMut(w: Window, new_size: ISize)}
+define_event!{OnResizeEvent: FnMut(w: Window, new_size: ISize)}
 
-
-#[macro_export]
-macro_rules! handler_do {
-    ($handler:expr, $closure:expr) => {{
-        // A lifetime error occurs without this no-op let.
-        let handler = $handler;
-        handler.borrow_mut().set(Some(Box::new($closure)));
-    }};
-}
-
-#[macro_export]
-macro_rules! handler_do_nothing {
-    ($handler:expr) => {{
-        // A lifetime error occurs without this no-op let.
-        let handler = $handler;
-        handler.borrow_mut().set(None);
-    }};
-}
-
-#[macro_export]
-macro_rules! handler_add {
-    ($handler:expr, $closure:expr) => {{
-        // A lifetime error occurs without this no-op let.
-        let handler = $handler;
-        let id = handler.borrow_mut().add(Box::new($closure));
-        id
-    }};
-}
-
-#[macro_export]
-macro_rules! handler_rem {
-    ($handler:expr, $id:expr) => {{
-        // A lifetime error occurs without this no-op let.
-        let handler = $handler;
-        let res = handler.borrow_mut().remove($id);
-        res
-    }};
-}
-
-
-#[macro_export]
-macro_rules! fire {
-    ($handler:expr, $($p:expr),*) => {{
-        // A lifetime error occurs without this no-op let.
-        let handler = $handler;
-        handler.borrow_mut().fire($($p),*);
-    }};
-}
-
-#[macro_export]
-macro_rules! fire_res {
-    ($handler:expr, $($p:expr),*) => {{
-        // A lifetime error occurs without this no-op let.
-        let handler = $handler;
-        let res = handler.borrow_mut().fire($($p),*);
-        res
-    }};
-}
-
-#[macro_export]
-macro_rules! fire_or {
-    ($handler:expr, $($p:expr),+) => {{
-        // A lifetime error occurs without this no-op let.
-        let handler = $handler;
-        let res = handler.borrow_mut().fire_or($($p),+);
-        res
-    }};
-}
 
 
 #[derive(Clone)]
@@ -94,7 +26,7 @@ pub struct WindowBase {
     pub title: String,
     pub state: State,
     pub on_close: RcCell<OnCloseHandler>,
-    pub on_resize: RcCell<OnResizeHandler>,
+    pub on_resize: RcCell<OnResizeEvent>,
 }
 
 
@@ -110,7 +42,7 @@ impl Window {
                 title: String::new(),
                 state: State::Normal,
                 on_close: Rc::new(RefCell::new(OnCloseHandler::new())),
-                on_resize: Rc::new(RefCell::new(OnResizeHandler::new())),
+                on_resize: Rc::new(RefCell::new(OnResizeEvent::new())),
             },
         }
     }
@@ -167,7 +99,7 @@ impl Window {
         self.base.borrow().on_close.clone()
     }
 
-    pub fn on_resize(&self) -> RcCell<OnResizeHandler> {
+    pub fn on_resize(&self) -> RcCell<OnResizeEvent> {
         self.base.borrow().on_resize.clone()
     }
 }
@@ -218,7 +150,7 @@ impl WindowBuilder {
 
     pub fn on_resize<F>(self, f: F) -> WindowBuilder
     where F: 'static + FnMut(Window, ISize) {
-        handler_add!(self.base.on_resize.clone(), f);
+        event_add!(self.base.on_resize.clone(), f);
         self
     }
 }

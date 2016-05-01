@@ -26,14 +26,11 @@ use std::cell::RefCell;
 
 #[macro_use]
 pub mod macros;
-#[macro_use]
-pub mod handler;
-#[macro_use]
-pub mod window;
 pub mod platform;
 pub mod geometry;
 pub mod key;
 pub mod mouse;
+pub mod window;
 
 pub use platform::*;
 pub use window::Window;

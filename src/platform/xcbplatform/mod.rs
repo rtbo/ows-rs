@@ -164,7 +164,7 @@ impl XcbPlatform {
             let protocol = ev.data().data32()[0];
             if protocol == wm_delete_window {
                 if let Some(pw) = self.window(ev.window()) {
-                    if fire_or!(pw.base.borrow().on_close.clone(), true,
+                    if handler_fire_or!(pw.base.borrow().on_close.clone(), true,
                             make_window(pw.clone())) {
                         pw.close();
                         if self.shared_state.windows.borrow().is_empty() &&
@@ -293,7 +293,7 @@ impl XcbWindow {
 
         let new_size = ISize::new(ev.width() as i32, ev.height() as i32);
         if new_size != old_r.size() {
-            fire!(self.base.borrow().on_resize.clone(),
+            event_fire!(self.base.borrow().on_resize.clone(),
                 make_window(self.rc_me()),
                 new_size);
         }

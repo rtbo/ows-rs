@@ -141,7 +141,7 @@ impl Win32SharedPlatform {
                     w.handle_wm_size(wparam, lparam)
                 },
                 WM_CLOSE => {
-                    if fire_or!(w.base.borrow().on_close.clone(),
+                    if handler_fire_or!(w.base.borrow().on_close.clone(),
                             true, make_window(w.clone())) {
                         w.close();
                         if self.windows.borrow().is_empty()
@@ -266,7 +266,7 @@ impl Win32Window {
         self.rect.set(r);
 
         if old_r.size() != r.size() {
-            fire!(self.base.borrow().on_resize.clone(),
+            event_fire!(self.base.borrow().on_resize.clone(),
                 make_window(self.rc_me()), r.size());
         }
         if old_r.point() != r.point() {
