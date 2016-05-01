@@ -242,7 +242,7 @@ impl Win32Window {
         !self.hwnd.get().is_null()
     }
 
-    fn handle_wm_size(&self, wparam: WPARAM, lparam: LPARAM) -> bool {
+    fn handle_wm_size(&self, wparam: WPARAM, _: LPARAM) -> bool {
         match wparam as u32 {
             SIZE_MAXSHOW | SIZE_MAXHIDE => { false },
             SIZE_MINIMIZED => {
