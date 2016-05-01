@@ -140,6 +140,9 @@ impl Win32SharedPlatform {
                 WM_SIZE => {
                     w.handle_wm_size(wparam, lparam)
                 },
+                WM_MOVE => {
+                    w.handle_wm_move(wparam, lparam)
+                },
                 WM_CLOSE => {
                     if handler_fire_or!(w.base.borrow().on_close.clone(),
                             true, make_window(w.clone())) {
@@ -259,6 +262,16 @@ impl Win32Window {
         }
     }
 
+    fn handle_wm_move(&self, _: WPARAM, _: LPARAM) -> bool {
+        if unsafe { IsIconic(self.hwnd.get()) } == 0 {
+            self.handle_rect_change();
+            true
+        }
+        else {
+            false
+        }
+    }
+
     fn handle_rect_change(&self) {
         let old_r = self.rect.get();
         let r = self.rect_sys();
@@ -270,7 +283,8 @@ impl Win32Window {
                 make_window(self.rc_me()), r.size());
         }
         if old_r.point() != r.point() {
-            // move
+            event_fire!(self.base.borrow().on_move.clone(),
+                make_window(self.rc_me()), r.point());
         }
     }
 

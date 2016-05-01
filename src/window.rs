@@ -1,5 +1,5 @@
 
-use geometry::ISize;
+use geometry::{ISize, IPoint};
 use platform::{Platform, PlatformWindow};
 use ::RcCell;
 
@@ -18,6 +18,7 @@ pub enum State {
 
 define_handler!{OnCloseHandler: FnMut(w: Window) => bool}
 define_event!{OnResizeEvent: FnMut(w: Window, new_size: ISize)}
+define_event!{OnMoveEvent: FnMut(w: Window, new_pos: IPoint)}
 
 
 
@@ -27,6 +28,7 @@ pub struct WindowBase {
     pub state: State,
     pub on_close: RcCell<OnCloseHandler>,
     pub on_resize: RcCell<OnResizeEvent>,
+    pub on_move: RcCell<OnMoveEvent>,
 }
 
 
@@ -43,6 +45,7 @@ impl Window {
                 state: State::Normal,
                 on_close: Rc::new(RefCell::new(OnCloseHandler::new())),
                 on_resize: Rc::new(RefCell::new(OnResizeEvent::new())),
+                on_move: Rc::new(RefCell::new(OnMoveEvent::new())),
             },
         }
     }
@@ -102,6 +105,10 @@ impl Window {
     pub fn on_resize(&self) -> RcCell<OnResizeEvent> {
         self.base.borrow().on_resize.clone()
     }
+
+    pub fn on_move(&self) -> RcCell<OnMoveEvent> {
+        self.base.borrow().on_move.clone()
+    }
 }
 
 impl Clone for Window {
@@ -151,6 +158,12 @@ impl WindowBuilder {
     pub fn on_resize<F>(self, f: F) -> WindowBuilder
     where F: 'static + FnMut(Window, ISize) {
         event_add!(self.base.on_resize.clone(), f);
+        self
+    }
+
+    pub fn on_move<F>(self, f: F) -> WindowBuilder
+    where F: 'static + FnMut(Window, IPoint) {
+        event_add!(self.base.on_move.clone(), f);
         self
     }
 }

@@ -239,7 +239,7 @@ pub struct XcbWindow {
 
 impl XcbWindow {
     fn new(base: RcCell<WindowBase>, shared_state: Rc<XcbSharedState>) -> Rc<XcbWindow> {
-        let mut w = Rc::new(XcbWindow {
+        let w = Rc::new(XcbWindow {
             base: base,
             weak_me: RefCell::new(Weak::new()),
             shared_state: shared_state,
@@ -285,10 +285,16 @@ impl XcbWindow {
         debug_assert!(self.created());
         let old_r = self.rect.get();
 
+        // cannot trust ev.x and ev.y as they are not updated
+        // when the window is resized by top or left.
+        // we fetch the position directly from the server instead
         let new_pos = self.get_position_sys().unwrap_or(
             IPoint::new(ev.x() as i32, ev.y() as i32)
         );
         if new_pos != old_r.point() {
+            event_fire!(self.base.borrow().on_move.clone(),
+                make_window(self.rc_me()),
+                new_pos);
         }
 
         let new_size = ISize::new(ev.width() as i32, ev.height() as i32);
