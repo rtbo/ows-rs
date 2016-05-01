@@ -1,7 +1,7 @@
 
 use ::{RcCell, WeakCell};
 use platform::{Platform, PlatformWindow, EventLoop};
-use window::{State, WindowBase};
+use window::{self, Window, WindowBase};
 use geometry::{Area, IRect};
 
 use winapi::*;
@@ -62,6 +62,7 @@ impl Area for RECT {
         (self.right-self.left) * (self.bottom-self.top)
     }
 }
+
 
 
 struct Win32SharedPlatform {
@@ -140,7 +141,8 @@ impl Win32SharedPlatform {
                     w.handle_wm_size(wparam, lparam)
                 },
                 WM_CLOSE => {
-                    if fire_or!(w.base.borrow().on_close.clone(), true) {
+                    if fire_or!(w.base.borrow().on_close.clone(),
+                            true, make_window(w.clone())) {
                         w.close();
                         if self.windows.borrow().is_empty()
                                 && self.exit_code.get().is_none() {
@@ -197,6 +199,13 @@ impl Win32SharedPlatform {
 }
 
 
+fn make_window(pw: Rc<Win32Window>) -> Window {
+    let base = pw.base.clone();
+    Window::make(base, pw)
+}
+
+
+
 pub struct Win32Window {
     base: RcCell<WindowBase>,
     weak_me: RefCell<Weak<Win32Window>>,
@@ -219,6 +228,11 @@ impl Win32Window {
             (*weak) = Rc::downgrade(&w);
         }
         w
+    }
+
+    fn rc_me(&self) -> Rc<Win32Window> {
+        // self is not dropped, so unwrapping should be safe
+        Weak::upgrade(&self.weak_me.borrow()).unwrap()
     }
 
     fn created(&self) -> bool {
@@ -252,7 +266,8 @@ impl Win32Window {
         self.rect.set(r);
 
         if old_r.size() != r.size() {
-            fire!(self.base.borrow().on_resize.clone(), r.size());
+            fire!(self.base.borrow().on_resize.clone(),
+                make_window(self.rc_me()), r.size());
         }
         if old_r.point() != r.point() {
             // move

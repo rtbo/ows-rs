@@ -16,8 +16,8 @@ pub enum State {
     Hidden,
 }
 
-define_handler!{OnCloseHandler: FnMut() => bool}
-define_handler!{OnResizeHandler: FnMut(new_size: ISize)}
+define_handler!{OnCloseHandler: FnMut(w: Window) => bool}
+define_handler!{OnResizeHandler: FnMut(w: Window, new_size: ISize)}
 
 
 #[macro_export]
@@ -115,6 +115,13 @@ impl Window {
         }
     }
 
+    pub fn make(base: RcCell<WindowBase>, pw: Rc<PlatformWindow>) -> Window {
+        Window {
+            base: base,
+            pw: pw,
+        }
+    }
+
     pub fn title(&self) -> String {
         self.base.borrow().title.clone()
     }
@@ -200,13 +207,13 @@ impl WindowBuilder {
     }
 
     pub fn on_close<F>(self, f: F) -> WindowBuilder
-    where F: 'static + FnMut() -> bool {
+    where F: 'static + FnMut(Window) -> bool {
         handler_do!(self.base.on_close.clone(), f);
         self
     }
 
     pub fn on_resize<F>(self, f: F) -> WindowBuilder
-    where F: 'static + FnMut(ISize) {
+    where F: 'static + FnMut(Window, ISize) {
         handler_add!(self.base.on_resize.clone(), f);
         self
     }

@@ -8,7 +8,7 @@ mod xcbkeyboard;
 
 use ::{RcCell, WeakCell};
 use platform::{Platform, PlatformWindow, EventLoop};
-use window::{self, WindowBase};
+use window::{self, Window, WindowBase};
 use geometry::*;
 
 use xcb::{self, dri2};
@@ -163,9 +163,10 @@ impl XcbPlatform {
         if ev.type_() == wm_protocols && ev.format() == 32 {
             let protocol = ev.data().data32()[0];
             if protocol == wm_delete_window {
-                if let Some(w) = self.window(ev.window()) {
-                    if { fire_or!(w.base.borrow().on_close.clone(), true) } {
-                        w.close();
+                if let Some(pw) = self.window(ev.window()) {
+                    if fire_or!(pw.base.borrow().on_close.clone(), true,
+                            make_window(pw.clone())) {
+                        pw.close();
                         if self.shared_state.windows.borrow().is_empty() &&
                                 self.exit_code.get().is_none() {
                             self.exit_code.set(Some(0));
@@ -218,6 +219,13 @@ impl EventLoop for XcbPlatform {
 }
 
 
+
+fn make_window(pw: Rc<XcbWindow>) -> Window {
+    let base = pw.base.clone();
+    Window::make(base, pw)
+}
+
+
 pub struct XcbWindow {
     base: RcCell<WindowBase>,
     weak_me: RefCell<Weak<XcbWindow>>,
@@ -245,6 +253,11 @@ impl XcbWindow {
             (*weak) = Rc::downgrade(&w);
         }
         w
+    }
+
+    fn rc_me(&self) -> Rc<XcbWindow> {
+        // self is not dropped, so unwrapping should be safe
+        Weak::upgrade(&self.weak_me.borrow()).unwrap()
     }
 
     fn conn(&self) -> &xcb::Connection {
@@ -280,7 +293,9 @@ impl XcbWindow {
 
         let new_size = ISize::new(ev.width() as i32, ev.height() as i32);
         if new_size != old_r.size() {
-            fire!(self.base.borrow().on_resize.clone(), new_size);
+            fire!(self.base.borrow().on_resize.clone(),
+                make_window(self.rc_me()),
+                new_size);
         }
 
         self.rect.set(IRect::new_ps(new_pos, new_size));
