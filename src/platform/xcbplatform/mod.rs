@@ -490,6 +490,11 @@ impl PlatformWindow for XcbWindow {
         self.update_state();
     }
 
+    fn check_base(&self, base: &WindowBase) -> bool {
+        let mine = &(*self.base.borrow()) as *const WindowBase;
+        let foreign = base as *const WindowBase;
+        mine == foreign
+    }
 
     fn update_title(&self) {
         if self.created() {

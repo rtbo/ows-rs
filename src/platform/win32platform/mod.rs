@@ -331,6 +331,12 @@ impl PlatformWindow for Win32Window {
         self.update_state();
     }
 
+    fn check_base(&self, base: &WindowBase) -> bool {
+        let mine = &(*self.base.borrow()) as *const WindowBase;
+        let foreign = base as *const WindowBase;
+        mine == foreign
+    }
+
     fn update_title(&self) {
         let title = to_u16(&self.base.borrow().title);
         unsafe { SetWindowTextW(self.hwnd.get(), title.as_ptr()); }

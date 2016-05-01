@@ -26,6 +26,7 @@ pub trait Platform : EventLoop {
 
 pub trait PlatformWindow {
     fn create(&self);
+    fn check_base(&self, base: &WindowBase) -> bool;
 
     fn update_title(&self);
     fn update_state(&self);

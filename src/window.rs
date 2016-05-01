@@ -116,6 +116,7 @@ impl Window {
     }
 
     pub fn make(base: RcCell<WindowBase>, pw: Rc<PlatformWindow>) -> Window {
+        debug_assert!(pw.check_base(&base.borrow()));
         Window {
             base: base,
             pw: pw,
