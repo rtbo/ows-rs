@@ -115,6 +115,9 @@ impl Window {
         }
     }
 
+    /// Builds a Window out of already existing base and pw.
+    /// This should only be used by PlatformWindow implementations.
+    /// the base must fit the one referenced in the PlatformWindow
     pub fn make(base: RcCell<WindowBase>, pw: Rc<PlatformWindow>) -> Window {
         debug_assert!(pw.check_base(&base.borrow()));
         Window {
