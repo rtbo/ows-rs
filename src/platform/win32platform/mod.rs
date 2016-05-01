@@ -226,10 +226,7 @@ impl Win32Window {
             hwnd: Cell::new(ptr::null_mut()),
             rect: Cell::new(IRect::new(0, 0, 0, 0)),
         });
-        {
-            let mut weak = w.weak_me.borrow_mut();
-            (*weak) = Rc::downgrade(&w);
-        }
+        (*w.weak_me.borrow_mut()) = Rc::downgrade(&w);
         w
     }
 

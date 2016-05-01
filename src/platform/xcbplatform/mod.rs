@@ -248,10 +248,7 @@ impl XcbWindow {
             last_known_state: Cell::new(window::State::Hidden),
             created: Cell::new(false),
         });
-        {
-            let mut weak = w.weak_me.borrow_mut();
-            (*weak) = Rc::downgrade(&w);
-        }
+        (*w.weak_me.borrow_mut()) = Rc::downgrade(&w);
         w
     }
 
