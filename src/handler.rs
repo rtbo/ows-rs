@@ -34,6 +34,7 @@ macro_rules! define_handler {
             }
             pub fn fire(&self, $($pn: $pt),*) {
                 for h in &self.handlers {
+                    $(let $pn = $pn.clone();)*
                     (*h)($($pn),*);
                 }
             }
@@ -104,6 +105,7 @@ macro_rules! define_handler {
             }
             pub fn fire(&mut self, $($pn: $pt),*) {
                 for h in &mut self.handlers {
+                    $(let $pn = $pn.clone();)*
                     (*h)($($pn),*);
                 }
             }
@@ -174,6 +176,7 @@ macro_rules! define_handler {
     //        }
     //        pub fn fire(self, $($pn: $pt),*) {
     //            for h in self.handlers {
+    //                $(let $pn = $pn.clone();)*
     //                h.call_box($($pn),*);
     //            }
     //        }
