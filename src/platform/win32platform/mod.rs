@@ -241,7 +241,6 @@ impl Win32Window {
 
     fn handle_wm_size(&self, wparam: WPARAM, _: LPARAM) -> bool {
         match wparam as u32 {
-            SIZE_MAXSHOW | SIZE_MAXHIDE => { false },
             SIZE_MINIMIZED => {
                 // state change
                 true
