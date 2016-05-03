@@ -19,8 +19,8 @@ pub enum State {
 define_handler!{OnCloseHandler: FnMut(w: Window) => bool}
 // generic event for events without parameters
 define_event!{OnEvent: FnMut(w: Window)}
-define_event!{OnResizeEvent: FnMut(w: Window, new_size: ISize)}
-define_event!{OnMoveEvent: FnMut(w: Window, new_pos: IPoint)}
+define_event!{OnSizeEvent: FnMut(w: Window, new_size: ISize)}
+define_event!{OnPointEvent: FnMut(w: Window, new_pos: IPoint)}
 
 
 
@@ -29,8 +29,8 @@ pub struct WindowBase {
     pub title: String,
     pub state: State,
     pub on_close: RcCell<OnCloseHandler>,
-    pub on_resize: RcCell<OnResizeEvent>,
-    pub on_move: RcCell<OnMoveEvent>,
+    pub on_resize: RcCell<OnSizeEvent>,
+    pub on_move: RcCell<OnPointEvent>,
     pub on_show: RcCell<OnEvent>,
     pub on_hide: RcCell<OnEvent>,
 }
@@ -48,8 +48,8 @@ impl Window {
                 title: String::new(),
                 state: State::Normal,
                 on_close: Rc::new(RefCell::new(OnCloseHandler::new())),
-                on_resize: Rc::new(RefCell::new(OnResizeEvent::new())),
-                on_move: Rc::new(RefCell::new(OnMoveEvent::new())),
+                on_resize: Rc::new(RefCell::new(OnSizeEvent::new())),
+                on_move: Rc::new(RefCell::new(OnPointEvent::new())),
                 on_show: Rc::new(RefCell::new(OnEvent::new())),
                 on_hide: Rc::new(RefCell::new(OnEvent::new())),
             },
@@ -108,11 +108,11 @@ impl Window {
         self.base.borrow().on_close.clone()
     }
 
-    pub fn on_resize(&self) -> RcCell<OnResizeEvent> {
+    pub fn on_resize(&self) -> RcCell<OnSizeEvent> {
         self.base.borrow().on_resize.clone()
     }
 
-    pub fn on_move(&self) -> RcCell<OnMoveEvent> {
+    pub fn on_move(&self) -> RcCell<OnPointEvent> {
         self.base.borrow().on_move.clone()
     }
 
