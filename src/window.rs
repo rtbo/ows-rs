@@ -17,6 +17,8 @@ pub enum State {
 }
 
 define_handler!{OnCloseHandler: FnMut(w: Window) => bool}
+// generic event for events without parameters
+define_event!{OnEvent: FnMut(w: Window)}
 define_event!{OnResizeEvent: FnMut(w: Window, new_size: ISize)}
 define_event!{OnMoveEvent: FnMut(w: Window, new_pos: IPoint)}
 
@@ -29,6 +31,8 @@ pub struct WindowBase {
     pub on_close: RcCell<OnCloseHandler>,
     pub on_resize: RcCell<OnResizeEvent>,
     pub on_move: RcCell<OnMoveEvent>,
+    pub on_show: RcCell<OnEvent>,
+    pub on_hide: RcCell<OnEvent>,
 }
 
 
@@ -46,6 +50,8 @@ impl Window {
                 on_close: Rc::new(RefCell::new(OnCloseHandler::new())),
                 on_resize: Rc::new(RefCell::new(OnResizeEvent::new())),
                 on_move: Rc::new(RefCell::new(OnMoveEvent::new())),
+                on_show: Rc::new(RefCell::new(OnEvent::new())),
+                on_hide: Rc::new(RefCell::new(OnEvent::new())),
             },
         }
     }
@@ -109,6 +115,14 @@ impl Window {
     pub fn on_move(&self) -> RcCell<OnMoveEvent> {
         self.base.borrow().on_move.clone()
     }
+
+    pub fn on_show(&self) -> RcCell<OnEvent> {
+        self.base.borrow().on_show.clone()
+    }
+
+    pub fn on_hide(&self) -> RcCell<OnEvent> {
+        self.base.borrow().on_hide.clone()
+    }
 }
 
 impl Clone for Window {
@@ -164,6 +178,18 @@ impl WindowBuilder {
     pub fn on_move<F>(self, f: F) -> WindowBuilder
     where F: 'static + FnMut(Window, IPoint) {
         event_add!(self.base.on_move.clone(), f);
+        self
+    }
+
+    pub fn on_show<F>(self, f: F) -> WindowBuilder
+    where F: 'static + FnMut(Window) {
+        event_add!(self.base.on_show.clone(), f);
+        self
+    }
+
+    pub fn on_hide<F>(self, f: F) -> WindowBuilder
+    where F: 'static + FnMut(Window) {
+        event_add!(self.base.on_hide.clone(), f);
         self
     }
 }

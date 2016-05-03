@@ -182,6 +182,18 @@ impl XcbPlatform {
             w.handle_configure_notify(&ev);
         }
     }
+
+    fn handle_map_notify(&self, ev: &xcb::MapNotifyEvent) {
+        if let Some(w) = self.window(ev.event()) {
+            event_fire!(w.base.borrow().on_show.clone(), make_window(w.rc_me()));
+        }
+    }
+
+    fn handle_unmap_notify(&self, ev: &xcb::UnmapNotifyEvent) {
+        if let Some(w) = self.window(ev.event()) {
+            event_fire!(w.base.borrow().on_hide.clone(), make_window(w.rc_me()));
+        }
+    }
 }
 
 
@@ -201,6 +213,12 @@ impl EventLoop for XcbPlatform {
                 },
                 xcb::CONFIGURE_NOTIFY => {
                     self.handle_configure_notify(xcb::cast_event(&ev));
+                },
+                xcb::MAP_NOTIFY => {
+                    self.handle_map_notify(xcb::cast_event(&ev));
+                },
+                xcb::UNMAP_NOTIFY => {
+                    self.handle_unmap_notify(xcb::cast_event(&ev));
                 },
                 _ => {}
             }

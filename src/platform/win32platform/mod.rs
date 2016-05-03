@@ -154,6 +154,9 @@ impl Win32SharedPlatform {
                     }
                     true
                 },
+                WM_SHOWWINDOW => {
+                    w.handle_wm_showwindow(wparam, lparam)
+                },
                 _ => { false }
             }
         }
@@ -266,6 +269,19 @@ impl Win32Window {
         else {
             false
         }
+    }
+
+    fn handle_wm_showwindow(&self, wparam: WPARAM, lparam: LPARAM) -> bool {
+        if lparam == 0 {
+            if wparam != 0 {
+                event_fire!(self.base.borrow().on_show.clone(), make_window(self.rc_me()));
+            }
+            else {
+                event_fire!(self.base.borrow().on_hide.clone(), make_window(self.rc_me()));
+            }
+            true
+        }
+        else { false } // only handle calls from ShowWindow
     }
 
     fn handle_rect_change(&self) {
