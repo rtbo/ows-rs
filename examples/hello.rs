@@ -20,6 +20,9 @@ fn main() {
         .on_resize(|mut w, s| {
             w.set_title(format!("Hello, World; new size: {:?}", s));
         })
+        .on_move(|_, p| println!("pos: {:?}", p))
+        .on_show(|_| println!("show"))
+        .on_hide(|_| println!("hide"))
         .state(window::State::Normal)
         .done(&p);
 
