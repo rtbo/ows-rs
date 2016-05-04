@@ -194,6 +194,20 @@ impl XcbPlatform {
             event_fire!(w.base.borrow().on_hide.clone(), make_window(w.rc_me()));
         }
     }
+
+    fn handle_enter_leave_notify(&self, ev: &xcb::EnterNotifyEvent) {
+        if let Some(w) = self.window(ev.event()) {
+            let ev_hdler = if (ev.response_type() & !0x80) == xcb::ENTER_NOTIFY {
+                w.base.borrow().on_enter.clone()
+            } else {
+                w.base.borrow().on_leave.clone()
+            };
+            event_fire!(ev_hdler,
+                make_window(w.rc_me()),
+                IPoint::new(ev.event_x() as i32, ev.event_y() as i32)
+            );
+        }
+    }
 }
 
 
@@ -219,6 +233,9 @@ impl EventLoop for XcbPlatform {
                 },
                 xcb::UNMAP_NOTIFY => {
                     self.handle_unmap_notify(xcb::cast_event(&ev));
+                },
+                xcb::ENTER_NOTIFY | xcb::LEAVE_NOTIFY => {
+                    self.handle_enter_leave_notify(xcb::cast_event(&ev));
                 },
                 _ => {}
             }

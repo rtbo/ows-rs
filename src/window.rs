@@ -1,5 +1,7 @@
 
 use geometry::{ISize, IPoint};
+use mouse;
+use key;
 use platform::{Platform, PlatformWindow};
 use ::RcCell;
 
@@ -21,6 +23,8 @@ define_handler!{OnCloseHandler: FnMut(w: Window) => bool}
 define_event!{OnEvent: FnMut(w: Window)}
 define_event!{OnSizeEvent: FnMut(w: Window, new_size: ISize)}
 define_event!{OnPointEvent: FnMut(w: Window, new_pos: IPoint)}
+define_event!{OnMouseEvent: FnMut(w: Window, pos: IPoint,
+                but: mouse::Buttons, mods: key::Mods)}
 
 
 
@@ -33,6 +37,8 @@ pub struct WindowBase {
     pub on_move: RcCell<OnPointEvent>,
     pub on_show: RcCell<OnEvent>,
     pub on_hide: RcCell<OnEvent>,
+    pub on_enter: RcCell<OnPointEvent>,
+    pub on_leave: RcCell<OnPointEvent>,
 }
 
 
@@ -52,6 +58,8 @@ impl Window {
                 on_move: Rc::new(RefCell::new(OnPointEvent::new())),
                 on_show: Rc::new(RefCell::new(OnEvent::new())),
                 on_hide: Rc::new(RefCell::new(OnEvent::new())),
+                on_enter: Rc::new(RefCell::new(OnPointEvent::new())),
+                on_leave: Rc::new(RefCell::new(OnPointEvent::new())),
             },
         }
     }
@@ -123,6 +131,14 @@ impl Window {
     pub fn on_hide(&self) -> RcCell<OnEvent> {
         self.base.borrow().on_hide.clone()
     }
+
+    pub fn on_enter(&self) -> RcCell<OnPointEvent> {
+        self.base.borrow().on_enter.clone()
+    }
+
+    pub fn on_leave(&self) -> RcCell<OnPointEvent> {
+        self.base.borrow().on_leave.clone()
+    }
 }
 
 impl Clone for Window {
@@ -190,6 +206,18 @@ impl WindowBuilder {
     pub fn on_hide<F>(self, f: F) -> WindowBuilder
     where F: 'static + FnMut(Window) {
         event_add!(self.base.on_hide.clone(), f);
+        self
+    }
+
+    pub fn on_enter<F>(self, f: F) -> WindowBuilder
+    where F: 'static + FnMut(Window, IPoint) {
+        event_add!(self.base.on_enter.clone(), f);
+        self
+    }
+
+    pub fn on_leave<F>(self, f: F) -> WindowBuilder
+    where F: 'static + FnMut(Window, IPoint) {
+        event_add!(self.base.on_leave.clone(), f);
         self
     }
 }
