@@ -2,7 +2,7 @@
 use ::{RcCell, WeakCell};
 use platform::{Platform, PlatformWindow, EventLoop};
 use window::{self, Window, WindowBase};
-use geometry::{Area, IRect};
+use geometry::{Area, IRect, IPoint};
 
 use winapi::*;
 use kernel32::*;
@@ -157,6 +157,9 @@ impl Win32SharedPlatform {
                 WM_SHOWWINDOW => {
                     w.handle_wm_showwindow(wparam, lparam)
                 },
+                WM_MOUSEMOVE | WM_MOUSELEAVE => {
+                    w.handle_wm_mouse(msg, wparam, lparam)
+                },
                 _ => { false }
             }
         }
@@ -218,6 +221,7 @@ pub struct Win32Window {
     shared_platform: Rc<Win32SharedPlatform>,
     hwnd: Cell<HWND>,
     rect: Cell<IRect>,
+    mouse_in: Cell<bool>,
 }
 
 impl Win32Window {
@@ -228,6 +232,7 @@ impl Win32Window {
             shared_platform: shared_platform,
             hwnd: Cell::new(ptr::null_mut()),
             rect: Cell::new(IRect::new(0, 0, 0, 0)),
+            mouse_in: Cell::new(false),
         });
         (*w.weak_me.borrow_mut()) = Rc::downgrade(&w);
         w
@@ -282,6 +287,40 @@ impl Win32Window {
             true
         }
         else { false } // only handle calls from ShowWindow
+    }
+
+    fn handle_wm_mouse(&self, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> bool {
+
+        let p = IPoint::new(
+            GET_X_LPARAM(lparam) as i32,
+            GET_Y_LPARAM(lparam) as i32,
+        );
+
+        match msg {
+            WM_MOUSEMOVE => {
+                if !self.mouse_in.get() {
+                    self.mouse_in.set(true);
+                    event_fire!(self.base.borrow().on_enter.clone(),
+                        make_window(self.rc_me()), p);
+
+                    let mut tm = TRACKMOUSEEVENT {
+                        cbSize: mem::size_of::<TRACKMOUSEEVENT>() as DWORD,
+                        dwFlags: TME_LEAVE as DWORD,
+                        hwndTrack: self.hwnd.get(),
+                        dwHoverTime: 0
+                    };
+                    unsafe { TrackMouseEvent(&mut tm); }
+                }
+                true
+            },
+            WM_MOUSELEAVE => {
+                self.mouse_in.set(false);
+                event_fire!(self.base.borrow().on_leave.clone(),
+                    make_window(self.rc_me()), p);
+                true
+            },
+            _ => { false },
+        }
     }
 
     fn handle_rect_change(&self) {

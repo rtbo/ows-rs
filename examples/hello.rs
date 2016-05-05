@@ -23,6 +23,8 @@ fn main() {
         .on_move(|_, p| println!("pos: {:?}", p))
         .on_show(|_| println!("show"))
         .on_hide(|_| println!("hide"))
+        .on_enter(|_, p| println!("enter {:?}", p))
+        .on_leave(|_, p| println!("leave {:?}", p))
         .state(window::State::Normal)
         .done(&p);
 
