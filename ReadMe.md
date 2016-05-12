@@ -10,17 +10,19 @@ Eventually, if other people join the project, it will become an actual IU toolki
  -  Application developer should not get bothered with `RefCell` interface
     -  If such interface is needed to share some state, it should be well hidden behind regular types
 
-## Some top-level design specifications
+## Some top-level windows design specifications
  -  Platform abstraction with erased types
  -  Support for multiple non modal windows in th main event loop
  -  Event handlers with closures (observer pattern)
- -  Some closures can return value (in such case only no more than one closure is connected)
+ -  Some closures can return value (in such case no more than one closure is connected)
  -  Possibility to create modal windows with an event handler (also non modal? TBD)
  -  access and modify ui elements within handlers
+ -  provide an easy way to carry application state in windows
 
 ## Some widgets system design specifications
  -  lazy resources loading
  -  use of vector graphics primitives
+ -  provide an easy way to carry application state in widgets
  -  ... TBD
 
 ## Some graphics system design specifications
