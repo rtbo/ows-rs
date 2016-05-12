@@ -1,5 +1,7 @@
 
 use geometry::{ISize, IPoint};
+use mouse;
+use key;
 use platform::{Platform, PlatformWindow};
 use ::RcCell;
 
@@ -21,6 +23,8 @@ define_handler!{OnCloseHandler: FnMut(w: Window) => bool}
 define_event!{OnEvent: FnMut(w: Window)}
 define_event!{OnSizeEvent: FnMut(w: Window, new_size: ISize)}
 define_event!{OnPointEvent: FnMut(w: Window, new_pos: IPoint)}
+define_event!{OnMouseEvent: FnMut(w: Window, pos: IPoint,
+                but: mouse::Buttons, mods: key::Mods)}
 
 
 
@@ -35,6 +39,9 @@ pub struct WindowBase {
     pub on_hide: RcCell<OnEvent>,
     pub on_enter: RcCell<OnPointEvent>,
     pub on_leave: RcCell<OnPointEvent>,
+    pub on_mouse_press: RcCell<OnMouseEvent>,
+    pub on_mouse_move: RcCell<OnMouseEvent>,
+    pub on_mouse_release: RcCell<OnMouseEvent>,
 }
 
 
@@ -56,6 +63,9 @@ impl Window {
                 on_hide: Rc::new(RefCell::new(OnEvent::new())),
                 on_enter: Rc::new(RefCell::new(OnPointEvent::new())),
                 on_leave: Rc::new(RefCell::new(OnPointEvent::new())),
+                on_mouse_press: Rc::new(RefCell::new(OnMouseEvent::new())),
+                on_mouse_move: Rc::new(RefCell::new(OnMouseEvent::new())),
+                on_mouse_release: Rc::new(RefCell::new(OnMouseEvent::new())),
             },
         }
     }
@@ -134,6 +144,18 @@ impl Window {
 
     pub fn on_leave(&self) -> RcCell<OnPointEvent> {
         self.base.borrow().on_leave.clone()
+    }
+
+    pub fn on_mouse_press(&self) -> RcCell<OnMouseEvent> {
+        self.base.borrow().on_mouse_press.clone()
+    }
+
+    pub fn on_mouse_move(&self) -> RcCell<OnMouseEvent> {
+        self.base.borrow().on_mouse_move.clone()
+    }
+
+    pub fn on_mouse_release(&self) -> RcCell<OnMouseEvent> {
+        self.base.borrow().on_mouse_release.clone()
     }
 }
 
@@ -214,6 +236,24 @@ impl WindowBuilder {
     pub fn on_leave<F>(self, f: F) -> WindowBuilder
     where F: 'static + FnMut(Window, IPoint) {
         event_add!(self.base.on_leave.clone(), f);
+        self
+    }
+
+    pub fn on_mouse_press<F>(self, f: F) -> WindowBuilder
+    where F: 'static + FnMut(Window, IPoint, mouse::Buttons, key::Mods) {
+        event_add!(self.base.on_mouse_press.clone(), f);
+        self
+    }
+
+    pub fn on_mouse_move<F>(self, f: F) -> WindowBuilder
+    where F: 'static + FnMut(Window, IPoint, mouse::Buttons, key::Mods) {
+        event_add!(self.base.on_mouse_move.clone(), f);
+        self
+    }
+
+    pub fn on_mouse_release<F>(self, f: F) -> WindowBuilder
+    where F: 'static + FnMut(Window, IPoint, mouse::Buttons, key::Mods) {
+        event_add!(self.base.on_mouse_release.clone(), f);
         self
     }
 }

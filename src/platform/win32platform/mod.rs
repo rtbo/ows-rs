@@ -2,6 +2,8 @@
 use ::{RcCell, WeakCell};
 use platform::{Platform, PlatformWindow, EventLoop};
 use window::{self, Window, WindowBase};
+use mouse;
+use key;
 use geometry::{Area, IRect, IPoint};
 
 use winapi::*;
@@ -157,6 +159,9 @@ impl Win32SharedPlatform {
                 WM_SHOWWINDOW => {
                     w.handle_wm_showwindow(wparam, lparam)
                 },
+                WM_LBUTTONDOWN | WM_LBUTTONUP |
+                WM_MBUTTONDOWN | WM_MBUTTONUP |
+                WM_RBUTTONDOWN | WM_RBUTTONUP |
                 WM_MOUSEMOVE | WM_MOUSELEAVE => {
                     w.handle_wm_mouse(msg, wparam, lparam)
                 },
@@ -297,9 +302,46 @@ impl Win32Window {
         );
 
         match msg {
+            WM_LBUTTONDOWN => {
+                event_fire!(self.base.borrow().on_mouse_press.clone(),
+                    make_window(self.rc_me()), p, mouse::Buttons::left(),
+                    key::Mods::new(key::MODS_NONE));
+                true
+            },
+            WM_LBUTTONUP => {
+                event_fire!(self.base.borrow().on_mouse_release.clone(),
+                    make_window(self.rc_me()), p, mouse::Buttons::left(),
+                    key::Mods::new(key::MODS_NONE));
+                true
+            },
+            WM_MBUTTONDOWN => {
+                event_fire!(self.base.borrow().on_mouse_press.clone(),
+                    make_window(self.rc_me()), p, mouse::Buttons::middle(),
+                    key::Mods::new(key::MODS_NONE));
+                true
+            },
+            WM_MBUTTONUP => {
+                event_fire!(self.base.borrow().on_mouse_release.clone(),
+                    make_window(self.rc_me()), p, mouse::Buttons::middle(),
+                    key::Mods::new(key::MODS_NONE));
+                true
+            },
+            WM_RBUTTONDOWN => {
+                event_fire!(self.base.borrow().on_mouse_press.clone(),
+                    make_window(self.rc_me()), p, mouse::Buttons::right(),
+                    key::Mods::new(key::MODS_NONE));
+                true
+            },
+            WM_RBUTTONUP => {
+                event_fire!(self.base.borrow().on_mouse_release.clone(),
+                    make_window(self.rc_me()), p, mouse::Buttons::right(),
+                    key::Mods::new(key::MODS_NONE));
+                true
+            },
             WM_MOUSEMOVE => {
                 if !self.mouse_in.get() {
                     self.mouse_in.set(true);
+
                     event_fire!(self.base.borrow().on_enter.clone(),
                         make_window(self.rc_me()), p);
 

@@ -3,6 +3,7 @@
 use std::ops::{BitAnd, BitOr, BitXor};
 
 
+pub const MODS_NONE       : u8 = 0x00;
 pub const MODS_CTRL_MASK  : u8 = 0x01;
 pub const MODS_SHIFT_MASK : u8 = 0x02;
 pub const MODS_META_MASK  : u8 = 0x04;
