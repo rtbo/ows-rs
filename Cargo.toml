@@ -1,0 +1,11 @@
+[package]
+name = "ows"
+version = "0.1.0"
+authors = ["Remi Thebault <remi.thebault@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+bitflags = "1.0"
+
+[target.'cfg(unix)'.dependencies]
+wayland-client = { version = "0.21.10" }
