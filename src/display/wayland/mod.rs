@@ -1,7 +1,7 @@
 
 mod window;
 
-use self::window::Window;
+use self::window::WldWindow;
 
 pub use wlc::ConnectError;
 use wlc::GlobalManager;
@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 pub struct Display
 {
-    state: Rc<RefCell<DisplayState>>,
+    state: Rc<RefCell<WldState>>,
 }
 
 impl Display
@@ -20,7 +20,7 @@ impl Display
     {
         wlc::Display::connect_to_env()
             .map(|(dpy, queue)| Display {
-                state: DisplayState::new(dpy, queue)
+                state: WldState::new(dpy, queue)
             })
     }
 }
@@ -32,22 +32,22 @@ impl Drop for Display
 
 impl super::Display for Display
 {
-    type Window = Window;
+    type Window = WldWindow;
 
-    fn create_window(&mut self) -> Window
+    fn create_window(&mut self) -> Rc<RefCell<WldWindow>>
     {
-        Window::new(self.state.clone())
+        WldWindow::new(self.state.clone())
     }
 }
 
 
-struct DisplayState
+struct WldState
 {
     dpy: wlc::Display,
     queue: wlc::EventQueue,
 }
 
-impl DisplayState
+impl WldState
 {
     fn new (dpy: wlc::Display, mut queue: wlc::EventQueue) -> Rc<RefCell<Self>>
     {

@@ -1,42 +1,36 @@
 
 use crate::window;
-use super::DisplayState;
+use crate::display;
+use super::WldState;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 
-pub struct Window
+pub struct WldWindow
 {
-    state: Rc<RefCell<WindowState>>
-}
-
-impl Window
-{
-    pub(in super) fn new(dpy: Rc<RefCell<DisplayState>>) -> Window {
-        Window {
-            state: Rc::new(RefCell::new( WindowState {
-                dpy: Rc::downgrade(&dpy),
-                title: String::new(),
-                size: (0, 0)
-            } ))
-        }
-    }
-}
-
-struct WindowState
-{
-    dpy: Weak<RefCell<DisplayState>>,
+    dpy: Weak<RefCell<WldState>>,
     title: String,
     size: (i32, i32),
 }
 
-impl window::Window for Window
+impl WldWindow
 {
-    fn title(&self) -> String {
-        self.state.borrow().title.clone()
+    pub(in super) fn new(dpy: Rc<RefCell<WldState>>) -> Rc<RefCell<WldWindow>> {
+        Rc::new(RefCell::new( WldWindow {
+            dpy: Rc::downgrade(&dpy),
+            title: String::new(),
+            size: (0, 0)
+        } ))
+    }
+}
+
+impl display::Window for WldWindow
+{
+    fn title(&self) -> &str {
+        &self.title
     }
     fn set_title(&mut self, val: String) {
-        self.state.borrow_mut().title = val;
+
     }
 
     fn show (&mut self, state: window::State) {}
