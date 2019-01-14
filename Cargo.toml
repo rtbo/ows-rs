@@ -8,4 +8,5 @@ edition = "2018"
 bitflags = "1.0"
 
 [target.'cfg(unix)'.dependencies]
-wayland-client = { version = "0.21.10" }
+wayland-client = { version="0.21.10" }
+wayland-protocols = { version="0.21.10", features=["client"] }
