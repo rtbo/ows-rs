@@ -46,7 +46,7 @@ impl super::Display for Display
 struct WldShared
 {
     _dpy: wlc::Display,
-    _queue: wlc::EventQueue,
+    queue: wlc::EventQueue,
     compositor: wlc::Proxy<WlCompositor>,
     xdg_shell: wlc::Proxy<XdgWmBase>,
 }
@@ -76,7 +76,7 @@ impl WldShared
         }
 
         Rc::new(RefCell::new(Self{
-            _dpy: dpy, _queue: queue,
+            _dpy: dpy, queue: queue,
             compositor: compositor,
             xdg_shell: xdg_shell,
         }))
