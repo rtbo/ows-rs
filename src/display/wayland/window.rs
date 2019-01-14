@@ -1,39 +1,65 @@
 
+use super::{WldShared, Display};
 use crate::window;
 use crate::display;
-use super::WldState;
+use wlc::protocol::wl_compositor::RequestsTrait as CompRequests;
+use wlc::protocol::wl_surface::WlSurface;
+use wlp::xdg_shell::client::xdg_wm_base::RequestsTrait as XdgWmRequests;
+use wlp::xdg_shell::client::xdg_surface::XdgSurface;
 use std::cell::RefCell;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 
 pub struct WldWindow
 {
-    dpy: Weak<RefCell<WldState>>,
+    shared: Rc<RefCell<WldShared>>,
+    win_shared: Option<WldWinShared>,
     title: String,
-    size: (i32, i32),
+    _size: (i32, i32),
+}
+
+struct WldWinShared
+{
+    _surf: wlc::Proxy<WlSurface>,
+    _xdg_surf: wlc::Proxy<XdgSurface>,
 }
 
 impl WldWindow
 {
-    pub(in super) fn new(dpy: Rc<RefCell<WldState>>) -> Rc<RefCell<WldWindow>> {
-        Rc::new(RefCell::new( WldWindow {
-            dpy: Rc::downgrade(&dpy),
+    pub(in super) fn new(shared: Rc<RefCell<WldShared>>) -> WldWindow {
+        WldWindow {
+            shared: shared.clone(),
+            win_shared: None,
             title: String::new(),
-            size: (0, 0)
-        } ))
+            _size: (0, 0)
+        }
     }
 }
 
-impl display::Window for WldWindow
+impl display::Window<Display> for WldWindow
 {
     fn title(&self) -> &str {
         &self.title
     }
     fn set_title(&mut self, val: String) {
-
+        self.title = val;
     }
 
-    fn show (&mut self, state: window::State) {}
+    fn show (&mut self, _: window::State)
+    {
+        let shared = self.shared.borrow();
+
+        let surf = shared.compositor.create_surface(
+            |np| np.implement(|_, _| {}, ())
+        ).unwrap();
+        let xdg_surf = shared.xdg_shell.get_xdg_surface(
+            &surf, |np| np.implement(|_, _| {}, ())
+        ).unwrap();
+
+        self.win_shared = Some(WldWinShared {
+            _surf: surf, _xdg_surf: xdg_surf
+        });
+    }
 
     fn close(&mut self) {}
 }

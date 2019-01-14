@@ -4,6 +4,8 @@ extern crate bitflags;
 
 #[cfg(unix)]
 extern crate wayland_client as wlc;
+#[cfg(unix)]
+extern crate wayland_protocols as wlp;
 
 pub mod display;
 pub mod event;

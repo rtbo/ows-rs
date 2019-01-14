@@ -2,25 +2,13 @@
 #![cfg(unix)]
 pub mod wayland;
 
-use crate::window;
+use crate::window::Window;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
-
-pub trait Display : Drop
+pub trait Display : Drop + Sized
 {
-    type Window : Window;
-    fn create_window(&mut self) -> Rc<RefCell<Self::Window>>;
-}
+    type OpenError;
+    type Window : Window<Self>;
 
-
-pub trait Window
-{
-    fn title(&self) -> &str;
-    fn set_title(&mut self, val: String);
-
-    fn show (&mut self, state: window::State);
-
-    fn close(&mut self);
+    fn open() -> Result<Self, Self::OpenError>;
+    fn create_window(&self) -> Self::Window;
 }
