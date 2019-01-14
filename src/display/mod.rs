@@ -1,6 +1,9 @@
 
-#![cfg(unix)]
+#[cfg(unix)]
 pub mod wayland;
+
+#[cfg(windows)]
+pub mod win32;
 
 use crate::window::Window;
 

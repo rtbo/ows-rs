@@ -2,6 +2,8 @@
 extern crate ows;
 #[cfg(unix)]
 use ows::display::wayland as disp;
+#[cfg(windows)]
+use ows::display::win32 as disp;
 
 use ows::display::Display;
 use ows::window::Window;
