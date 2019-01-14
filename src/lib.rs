@@ -9,6 +9,8 @@ extern crate wayland_protocols as wlp;
 
 #[cfg(windows)]
 extern crate winapi;
+#[cfg(windows)]
+extern crate libc;
 
 pub mod display;
 pub mod event;
