@@ -1,6 +1,6 @@
 
 bitflags!{
-    struct Mods : u32 {
+    pub struct Mods : u32 {
         const LEFT_CTRL     = 0x0000_0001;
         const RIGHT_CTRL    = 0x0000_0002;
         const CTRL          = Self::LEFT_CTRL.bits | Self::RIGHT_CTRL.bits;

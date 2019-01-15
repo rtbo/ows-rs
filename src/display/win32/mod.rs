@@ -5,8 +5,11 @@ use libc::c_int;
 use winapi::shared::windef::{HBRUSH, HWND};
 use winapi::shared::minwindef::{HINSTANCE, LPARAM, LRESULT, UINT, WPARAM};
 use winapi::um::winuser::{
-    DefWindowProcW, LoadCursorW, LoadIconW, RegisterClassExW, 
-    WNDCLASSEXW, IDI_APPLICATION, IDC_ARROW,
+    DefWindowProcW, LoadCursorW, LoadIconW, SetWindowTextW,
+    RegisterClassExW, CreateWindowExW,
+    WNDCLASSEXW, 
+    IDI_APPLICATION, IDC_ARROW, CW_USEDEFAULT,
+    WS_EX_CLIENTEDGE, WS_OVERLAPPEDWINDOW,
 };
 use winapi::um::libloaderapi::GetModuleHandleW;
 use std::ffi::OsStr;
@@ -65,7 +68,7 @@ impl super::Display for Display
 
     fn create_window(&self) -> Window
     {
-        Window{ _hwnd: ptr::null_mut(), title: String::new() }
+        Window::new()
     }
 }
 
@@ -104,16 +107,20 @@ impl Display
     }
 }
 
-unsafe extern "system"
-fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT 
-{
-    DefWindowProcW(hwnd, msg, wparam, lparam)
-}
-
 pub struct Window
 {
-    _hwnd: HWND,
+    hwnd: HWND,
     title: String,
+}
+
+impl Window
+{
+    fn new() -> Window
+    {
+        Window {
+            hwnd: ptr::null_mut(), title: String::new()
+        }
+    }
 }
 
 impl window::Window<Display> for Window
@@ -126,12 +133,38 @@ impl window::Window<Display> for Window
     fn set_title(&mut self, val: String)
     {
         self.title = val;
+        if !self.hwnd.is_null() {
+            let tit = to_u16(&self.title);
+            unsafe { SetWindowTextW(self.hwnd, tit.as_ptr()); }
+        }
     }
 
     fn show (&mut self, _state: window::State)
-    {}
+    {
+        unsafe {
+            let hinstance = GetModuleHandleW(ptr::null());
+            let cls_name = to_u16(WINDOW_CLASS);
+            let title = to_u16(&self.title);
+
+            self.hwnd = CreateWindowExW(
+                WS_EX_CLIENTEDGE,
+                cls_name.as_ptr(),
+                title.as_ptr(),
+                WS_OVERLAPPEDWINDOW,
+                CW_USEDEFAULT, CW_USEDEFAULT,
+                CW_USEDEFAULT, CW_USEDEFAULT,
+                ptr::null_mut(), ptr::null_mut(), hinstance, ptr::null_mut()
+            );
+        }
+    }
 
     fn close(&mut self)
     {}
 
+}
+
+unsafe extern "system"
+fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT 
+{
+    DefWindowProcW(hwnd, msg, wparam, lparam)
 }

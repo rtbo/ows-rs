@@ -13,6 +13,7 @@ extern crate winapi;
 extern crate libc;
 
 pub mod display;
-pub mod event;
+pub mod geometry;
 pub mod key;
+pub mod mouse;
 pub mod window;

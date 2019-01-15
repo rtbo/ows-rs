@@ -1,0 +1,14 @@
+
+bitflags!{
+    pub struct Buts : u8 {
+        const LEFT      = 0x01;
+        const MIDDLE    = 0x02;
+        const RIGHT     = 0x04;
+        const MASK      = 0x07;
+    }
+}
+
+pub enum But
+{
+    Left, Middle, Right
+}
