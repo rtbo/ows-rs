@@ -6,10 +6,11 @@ use winapi::shared::windef::{HBRUSH, HWND};
 use winapi::shared::minwindef::{HINSTANCE, LPARAM, LRESULT, UINT, WPARAM};
 use winapi::um::winuser::{
     DefWindowProcW, LoadCursorW, LoadIconW, SetWindowTextW,
-    RegisterClassExW, CreateWindowExW,
-    WNDCLASSEXW, 
-    IDI_APPLICATION, IDC_ARROW, CW_USEDEFAULT,
-    WS_EX_CLIENTEDGE, WS_OVERLAPPEDWINDOW,
+    RegisterClassExW, CreateWindowExW, ShowWindow,
+    WNDCLASSEXW, CS_OWNDC,
+    IDI_APPLICATION, IDC_ARROW, CW_USEDEFAULT, WS_EX_OVERLAPPEDWINDOW, 
+    WS_OVERLAPPEDWINDOW, WS_MAXIMIZE, WS_MINIMIZE, SW_SHOWNORMAL,
+    SW_MINIMIZE, SW_MAXIMIZE,
 };
 use winapi::um::libloaderapi::GetModuleHandleW;
 use std::ffi::OsStr;
@@ -88,7 +89,7 @@ impl Display
 
         let wc = WNDCLASSEXW {
             cbSize: mem::size_of::<WNDCLASSEXW>() as UINT,
-            style: 0,
+            style: CS_OWNDC,
             lpfnWndProc: Some(win32_wnd_proc),
             cbClsExtra: 0,
             cbWndExtra: mem::size_of::<usize>() as c_int,
@@ -139,22 +140,39 @@ impl window::Window<Display> for Window
         }
     }
 
-    fn show (&mut self, _state: window::State)
+    fn show (&mut self, state: window::State)
     {
         unsafe {
             let hinstance = GetModuleHandleW(ptr::null());
             let cls_name = to_u16(WINDOW_CLASS);
             let title = to_u16(&self.title);
 
+            let (w, h) = match state {
+                window::State::Normal(Some((w, h))) => (w as c_int, h as c_int),
+                _ => (CW_USEDEFAULT, CW_USEDEFAULT)
+            };
+
+            let (s_ex, s) = match state {
+                window::State::Normal(_) => (WS_EX_OVERLAPPEDWINDOW, WS_OVERLAPPEDWINDOW),
+                window::State::Maximized => (WS_EX_OVERLAPPEDWINDOW, WS_OVERLAPPEDWINDOW | WS_MAXIMIZE),
+                window::State::Minimized => (WS_EX_OVERLAPPEDWINDOW, WS_OVERLAPPEDWINDOW | WS_MINIMIZE),
+                window::State::Fullscreen => panic!("fullscreen unsupported at the moment"),
+            };
+
             self.hwnd = CreateWindowExW(
-                WS_EX_CLIENTEDGE,
-                cls_name.as_ptr(),
-                title.as_ptr(),
-                WS_OVERLAPPEDWINDOW,
-                CW_USEDEFAULT, CW_USEDEFAULT,
-                CW_USEDEFAULT, CW_USEDEFAULT,
+                s_ex, cls_name.as_ptr(), title.as_ptr(), s,
+                CW_USEDEFAULT, CW_USEDEFAULT, w, h,
                 ptr::null_mut(), ptr::null_mut(), hinstance, ptr::null_mut()
             );
+
+            let show = match state {
+                window::State::Normal(_) => SW_SHOWNORMAL,
+                window::State::Maximized => SW_MAXIMIZE,
+                window::State::Minimized => SW_MINIMIZE,
+                _ => 0,
+            };
+
+            ShowWindow(self.hwnd, show);
         }
     }
 

@@ -6,11 +6,15 @@ use ows::display::wayland as disp;
 use ows::display::win32 as disp;
 
 use ows::display::Display;
-use ows::window::Window;
+use ows::window::{self, Window};
 
 fn main() {
     let dpy = disp::Display::open().expect("could not open display");
     let mut win = dpy.create_window();
 
-    win.set_title(String::from("Hello, Ows!"))
+    win.set_title(String::from("Hello, Ows!"));
+
+    win.show(window::State::Normal(None));
+
+    std::thread::sleep(std::time::Duration::from_secs(3));
 }
