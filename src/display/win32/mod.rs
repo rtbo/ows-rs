@@ -7,8 +7,8 @@ use winapi::shared::minwindef::*;
 use winapi::um::winuser::*;
 use winapi::um::libloaderapi::GetModuleHandleW;
 use std::ffi::OsStr;
-use std::os::windows::ffi::OsStrExt;
 use std::mem;
+use std::os::windows::ffi::OsStrExt;
 use std::ptr;
 
 const WINDOW_CLASS: &'static str = "ows-rs_window_class";
@@ -107,6 +107,7 @@ pub struct Window
     title: String,
     state: window::State,
     saved_info: SavedInfo,
+    shared: Option<Box<WindowShared>>,
 }
 
 struct SavedInfo {
@@ -114,6 +115,10 @@ struct SavedInfo {
     maximized: bool,
     style: DWORD,
     ex_style: DWORD,
+}
+
+struct WindowShared {
+    event_buf: Vec<window::Event>,
 }
 
 impl Window
@@ -128,7 +133,8 @@ impl Window
                 rect: RECT {left: 0, top: 0, right: 0, bottom: 0},
                 maximized: false,
                 style: 0, ex_style: 0
-            }
+            },
+            shared: None,
         }
     }
 
@@ -147,14 +153,20 @@ impl Window
         let cls_name = to_u16(WINDOW_CLASS);
         let title = to_u16(&self.title);
 
-        unsafe {
+
+        self.hwnd = unsafe {
             let hinstance = GetModuleHandleW(ptr::null());
-            self.hwnd = CreateWindowExW(
+            let hwnd = CreateWindowExW(
                 s_ex, cls_name.as_ptr(), title.as_ptr(), s,
                 CW_USEDEFAULT, CW_USEDEFAULT, w, h,
                 ptr::null_mut(), ptr::null_mut(), hinstance, ptr::null_mut()
             );
-        }
+            let mut shared = Box::new(WindowShared { event_buf: Vec::new() });
+            let shared_ptr = &mut *shared as *mut _; 
+            self.shared = Some(shared);
+            set_window_long_ptr(hwnd, 0, mem::transmute(shared_ptr));
+            hwnd
+        };
         self.state = match state {
             window::State::Fullscreen => window::State::Normal(None),
             s @ _ => s,
@@ -271,13 +283,30 @@ impl window::Window<Display> for Window
     {
         if !self.hwnd.is_null() {
             unsafe { DestroyWindow(self.hwnd); }
+            self.hwnd = ptr::null_mut();
+            self.shared = None;
         }
     }
-
 }
 
 unsafe extern "system"
 fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT 
 {
-    DefWindowProcW(hwnd, msg, wparam, lparam)
+    let shared: *mut WindowShared = mem::transmute(get_window_long_ptr(hwnd, 0));
+    if shared.is_null() {
+        return DefWindowProcW(hwnd, msg, wparam, lparam);
+    }
+
+    let shared: &mut WindowShared = mem::transmute(shared);
+
+    match msg {
+        WM_CLOSE => {
+            println!("closing!");
+            shared.event_buf.push(window::Event::Close);
+            0
+        },
+        _ => {
+            DefWindowProcW(hwnd, msg, wparam, lparam)
+        }
+    }
 }
