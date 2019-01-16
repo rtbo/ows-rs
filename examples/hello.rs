@@ -14,7 +14,7 @@ fn main() {
 
     win.set_title(String::from("Hello, Ows!"));
 
-    win.show(window::State::Normal(None));
+    win.show(window::State::Normal(Some((640, 480))));
 
     std::thread::sleep(std::time::Duration::from_secs(3));
 }
