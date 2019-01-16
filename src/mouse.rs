@@ -8,6 +8,7 @@ bitflags!{
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum But
 {
     Left, Middle, Right

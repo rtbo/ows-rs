@@ -4,6 +4,7 @@ use super::geometry::{IPoint, ISize};
 use super::key;
 use super::mouse;
 
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum State
 {
     Normal(Option<(u16, u16)>),
@@ -22,6 +23,7 @@ pub trait Window<D : Display>
     fn close(&mut self);
 }
 
+#[derive(Clone, Debug)]
 pub enum Event
 {
     Resize(ISize),
