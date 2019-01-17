@@ -320,6 +320,7 @@ impl window::Window<Display> for Window
 }
 
 impl WindowShared {
+
     fn new() -> WindowShared {
         WindowShared {
             event_buf: Vec::new(),
@@ -328,6 +329,16 @@ impl WindowShared {
             state: window::State::Normal(None),
         }
     }
+
+    fn state_change(&mut self, state: window::State) -> bool
+    {
+        if state != self.state {
+            self.event_buf.push(window::Event::State(state));
+            self.state = state;
+        }
+        true
+    }
+
     fn geom_change(&mut self, hwnd: HWND) -> bool
     {
         let new_r = unsafe {
@@ -353,12 +364,18 @@ impl WindowShared {
         self.rect = new_r;
 
         if new_s.w != old_s.w || new_s.h != old_s.h {
-            self.resize_event(new_s);
-            true
+            self.resize_event(new_s)
         }
         else {
             false
         }
+    }
+
+    fn state_geom_change(&mut self, hwnd: HWND, state: window::State) -> bool
+    {
+        let state = self.state_change(state);
+        let geom = self.geom_change(hwnd);
+        state || geom
     }
 
     fn event(&mut self, ev: window::Event) -> bool {
@@ -366,22 +383,26 @@ impl WindowShared {
         true
     }
 
-    fn resize_event(&mut self, new_size: ISize)
-    {
+    fn resize_event(&mut self, new_size: ISize) -> bool {
         if self.event_comp & COMP_RESIZE == 0 {
             self.event_buf.push(window::Event::Resize(new_size));
             self.event_comp |= COMP_RESIZE;
+            true
         }
         else {
+            let mut handled = false;
             for ev in &mut self.event_buf {
                 match ev {
                     window::Event::Resize(_) => {
                         *ev = window::Event::Resize(new_size);
+                        handled = true;
                         break;
                     },
                     _ => {},
                 }
             }
+            debug_assert!(handled, "did not find compressed resize event");
+            handled
         }
     }
 }
@@ -404,9 +425,9 @@ fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRES
         WM_CLOSE => shared.event(window::Event::Close),
         WM_SIZE => {
             match wparam {
-                SIZE_MINIMIZED => false, // TODO: state change event
-                SIZE_MAXIMIZED => shared.geom_change(hwnd),
-                SIZE_RESTORED => shared.geom_change(hwnd),
+                SIZE_MINIMIZED => shared.state_change(window::State::Minimized), // TODO: state change event
+                SIZE_MAXIMIZED => shared.state_geom_change(hwnd, window::State::Maximized),
+                SIZE_RESTORED => shared.state_geom_change(hwnd, window::State::Normal(None)),
                 _ => false,
             }
         },
