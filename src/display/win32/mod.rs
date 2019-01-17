@@ -119,7 +119,6 @@ pub struct Window
 {
     hwnd: HWND,
     title: String,
-    state: window::State,
     saved_info: SavedInfo,
     shared: Option<Box<WindowShared>>,
 }
@@ -135,6 +134,7 @@ struct WindowShared {
     event_buf: Vec<window::Event>,
     event_comp: u32,
     rect: RECT,
+    state: window::State,
 }
 
 const COMP_RESIZE: u32 = 1;
@@ -147,7 +147,6 @@ impl Window
         Window {
             hwnd: ptr::null_mut(), 
             title: String::new(),
-            state: window::State::Normal(None),
             saved_info: SavedInfo {
                 rect: RECT {left: 0, top: 0, right: 0, bottom: 0},
                 maximized: false,
@@ -186,7 +185,8 @@ impl Window
             set_window_long_ptr(hwnd, 0, mem::transmute(shared_ptr));
             hwnd
         };
-        self.state = match state {
+        let mut shared = self.shared.as_mut().unwrap();
+        shared.state = match state {
             window::State::Fullscreen => window::State::Normal(None),
             s @ _ => s,
         };
@@ -216,9 +216,10 @@ impl window::Window<Display> for Window
             unsafe { ShowWindow(self.hwnd, SW_SHOWNORMAL); }
         }
 
-        if state == self.state { return; }
+        let mut shared = self.shared.as_mut().unwrap();
+        if state == shared.state { return; }
 
-        match (self.state, state) {
+        match (shared.state, state) {
             (_, window::State::Fullscreen) => {
                 unsafe {
                     // save some info for next time mode changes
@@ -295,7 +296,7 @@ impl window::Window<Display> for Window
             _ => {}
         }
 
-        self.state = state;
+        shared.state = state;
     }
 
     fn retrieve_events(&mut self) -> Vec<window::Event>
@@ -324,6 +325,7 @@ impl WindowShared {
             event_buf: Vec::new(),
             event_comp: 0,
             rect: unsafe { mem::zeroed() },
+            state: window::State::Normal(None),
         }
     }
     fn geom_change(&mut self, hwnd: HWND) -> bool
