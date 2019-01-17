@@ -432,56 +432,96 @@ impl WindowShared {
         match msg {
             WM_LBUTTONDOWN => {
                 self.mouse_state.insert(mouse::State::LEFT);
-                self.event(window::Event::MouseDown(pos, mouse::But::Left, self.mouse_state, mods))
-            },
+                self.event(window::Event::MouseDown(
+                    pos,
+                    mouse::But::Left,
+                    self.mouse_state,
+                    mods,
+                ))
+            }
             WM_MBUTTONDOWN => {
                 self.mouse_state.insert(mouse::State::MIDDLE);
-                self.event(window::Event::MouseDown(pos, mouse::But::Middle, self.mouse_state, mods))
-            },
+                self.event(window::Event::MouseDown(
+                    pos,
+                    mouse::But::Middle,
+                    self.mouse_state,
+                    mods,
+                ))
+            }
             WM_RBUTTONDOWN => {
                 self.mouse_state.insert(mouse::State::RIGHT);
-                self.event(window::Event::MouseDown(pos, mouse::But::Right, self.mouse_state, mods))
-            },
+                self.event(window::Event::MouseDown(
+                    pos,
+                    mouse::But::Right,
+                    self.mouse_state,
+                    mods,
+                ))
+            }
             WM_LBUTTONUP => {
                 self.mouse_state.remove(mouse::State::LEFT);
-                self.event(window::Event::MouseUp(pos, mouse::But::Left, self.mouse_state, mods))
-            },
+                self.event(window::Event::MouseUp(
+                    pos,
+                    mouse::But::Left,
+                    self.mouse_state,
+                    mods,
+                ))
+            }
             WM_MBUTTONUP => {
                 self.mouse_state.remove(mouse::State::MIDDLE);
-                self.event(window::Event::MouseUp(pos, mouse::But::Middle, self.mouse_state, mods))
-            },
+                self.event(window::Event::MouseUp(
+                    pos,
+                    mouse::But::Middle,
+                    self.mouse_state,
+                    mods,
+                ))
+            }
             WM_RBUTTONUP => {
                 self.mouse_state.remove(mouse::State::RIGHT);
-                self.event(window::Event::MouseUp(pos, mouse::But::Right, self.mouse_state, mods))
-            },
+                self.event(window::Event::MouseUp(
+                    pos,
+                    mouse::But::Right,
+                    self.mouse_state,
+                    mods,
+                ))
+            }
             WM_MOUSEMOVE => {
                 if self.mouse_out {
                     self.mouse_out = false;
 
                     // mouse was out: deliver enter event
-                    self.event_buf.push(window::Event::MouseEnter(pos, self.mouse_state, mods));
+                    self.event_buf
+                        .push(window::Event::MouseEnter(pos, self.mouse_state, mods));
                     // and register for leave event
                     let mut tm = TRACKMOUSEEVENT {
                         cbSize: mem::size_of::<TRACKMOUSEEVENT>() as DWORD,
                         dwFlags: TME_LEAVE,
                         hwndTrack: hwnd,
-                        dwHoverTime: 0
+                        dwHoverTime: 0,
                     };
-                    unsafe { TrackMouseEvent(&mut tm); }
+                    unsafe {
+                        TrackMouseEvent(&mut tm);
+                    }
                 }
                 self.mouse_pos = pos;
                 self.mouse_move_event(window::Event::MouseMove(pos, self.mouse_state, mods))
-            },
+            }
             WM_MOUSELEAVE => {
                 self.mouse_out = true;
-                self.event(window::Event::MouseLeave(self.mouse_pos, self.mouse_state, mods))
-            },
-            _ => { false }
+                self.event(window::Event::MouseLeave(
+                    self.mouse_pos,
+                    self.mouse_state,
+                    mods,
+                ))
+            }
+            _ => false,
         }
     }
 
     fn key_change(&mut self, hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> bool {
-        debug_assert!(msg != WM_CHAR, "Char msg must be intercepted before delivery!");
+        debug_assert!(
+            msg != WM_CHAR,
+            "Char msg must be intercepted before delivery!"
+        );
         assert!(wparam < 256);
 
         let sym = keymap::sym(wparam as u32);
@@ -493,11 +533,9 @@ impl WindowShared {
             WM_KEYDOWN => {
                 let text = unsafe { peek_char_msg(hwnd) };
                 self.event(window::Event::KeyDown(sym, code, self.mods, text))
-            },
-            WM_KEYUP => {
-                self.event(window::Event::KeyUp(sym, code, self.mods))
-            },
-            _ => { false }
+            }
+            WM_KEYUP => self.event(window::Event::KeyUp(sym, code, self.mods)),
+            _ => false,
         }
     }
 
@@ -565,10 +603,11 @@ unsafe fn peek_char_msg(hwnd: HWND) -> String {
     let mut msg: MSG = mem::zeroed();
     if PeekMessageW(&mut msg, hwnd, WM_CHAR, WM_CHAR, PM_REMOVE) != 0 {
         let count = msg.lParam as u32 & REPEAT_COUNT_MASK;
-        let utf16: Vec<u16> = iter::repeat(msg.wParam as u16).take(count as usize).collect();
+        let utf16: Vec<u16> = iter::repeat(msg.wParam as u16)
+            .take(count as usize)
+            .collect();
         String::from_utf16_lossy(&utf16)
-    }
-    else {
+    } else {
         String::new()
     }
 }
@@ -576,15 +615,31 @@ unsafe fn peek_char_msg(hwnd: HWND) -> String {
 unsafe fn key_mods() -> key::Mods {
     let mut mods = key::Mods::empty();
 
-    if GetKeyState(VK_LSHIFT) as u16 & 0x8000 != 0 { mods.insert(key::Mods::LEFT_SHIFT); }
-    if GetKeyState(VK_LCONTROL) as u16 & 0x8000 != 0 { mods.insert(key::Mods::LEFT_CTRL); }
-    if GetKeyState(VK_LMENU) as u16 & 0x8000 != 0 { mods.insert(key::Mods::LEFT_ALT); }
-    if GetKeyState(VK_LWIN) as u16 & 0x8000 != 0 { mods.insert(key::Mods::SUPER); }
+    if GetKeyState(VK_LSHIFT) as u16 & 0x8000 != 0 {
+        mods.insert(key::Mods::LEFT_SHIFT);
+    }
+    if GetKeyState(VK_LCONTROL) as u16 & 0x8000 != 0 {
+        mods.insert(key::Mods::LEFT_CTRL);
+    }
+    if GetKeyState(VK_LMENU) as u16 & 0x8000 != 0 {
+        mods.insert(key::Mods::LEFT_ALT);
+    }
+    if GetKeyState(VK_LWIN) as u16 & 0x8000 != 0 {
+        mods.insert(key::Mods::SUPER);
+    }
 
-    if GetKeyState(VK_RSHIFT) as u16 & 0x8000 != 0 { mods.insert(key::Mods::RIGHT_SHIFT); }
-    if GetKeyState(VK_RCONTROL) as u16 & 0x8000 != 0 { mods.insert(key::Mods::RIGHT_CTRL); }
-    if GetKeyState(VK_RMENU) as u16 & 0x8000 != 0 { mods.insert(key::Mods::RIGHT_ALT); }
-    if GetKeyState(VK_RWIN) as u16 & 0x8000 != 0 { mods.insert(key::Mods::SUPER); }
+    if GetKeyState(VK_RSHIFT) as u16 & 0x8000 != 0 {
+        mods.insert(key::Mods::RIGHT_SHIFT);
+    }
+    if GetKeyState(VK_RCONTROL) as u16 & 0x8000 != 0 {
+        mods.insert(key::Mods::RIGHT_CTRL);
+    }
+    if GetKeyState(VK_RMENU) as u16 & 0x8000 != 0 {
+        mods.insert(key::Mods::RIGHT_ALT);
+    }
+    if GetKeyState(VK_RWIN) as u16 & 0x8000 != 0 {
+        mods.insert(key::Mods::SUPER);
+    }
 
     mods
 }
@@ -614,10 +669,8 @@ unsafe extern "system" fn win32_wnd_proc(
         WM_LBUTTONDOWN | WM_LBUTTONUP | WM_MBUTTONDOWN | WM_MBUTTONUP | WM_RBUTTONDOWN
         | WM_RBUTTONUP | WM_MOUSEMOVE | WM_MOUSELEAVE => {
             shared.mouse_change(hwnd, msg, wparam, lparam)
-        },
-        WM_KEYDOWN | WM_KEYUP | WM_CHAR => {
-            shared.key_change(hwnd, msg, wparam, lparam)
-        },
+        }
+        WM_KEYDOWN | WM_KEYUP | WM_CHAR => shared.key_change(hwnd, msg, wparam, lparam),
         _ => false,
     };
 

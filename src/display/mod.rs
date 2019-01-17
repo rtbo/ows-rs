@@ -1,4 +1,3 @@
-
 #[cfg(unix)]
 pub mod wayland;
 
@@ -7,10 +6,9 @@ pub mod win32;
 
 use crate::window::Window;
 
-pub trait Display : Drop + Sized
-{
+pub trait Display: Drop + Sized {
     type OpenError;
-    type Window : Window<Self>;
+    type Window: Window<Self>;
 
     fn open() -> Result<Self, Self::OpenError>;
 

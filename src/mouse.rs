@@ -1,5 +1,4 @@
-
-bitflags!{
+bitflags! {
     pub struct State : u8 {
         const LEFT      = 0x01;
         const MIDDLE    = 0x02;
@@ -9,7 +8,8 @@ bitflags!{
 }
 
 #[derive(Copy, Clone, Debug)]
-pub enum But
-{
-    Left, Middle, Right
+pub enum But {
+    Left,
+    Middle,
+    Right,
 }

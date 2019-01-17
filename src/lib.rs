@@ -1,4 +1,3 @@
-
 #[macro_use]
 extern crate bitflags;
 
@@ -8,9 +7,9 @@ extern crate wayland_client as wlc;
 extern crate wayland_protocols as wlp;
 
 #[cfg(windows)]
-extern crate winapi;
-#[cfg(windows)]
 extern crate libc;
+#[cfg(windows)]
+extern crate winapi;
 
 pub mod display;
 pub mod geometry;

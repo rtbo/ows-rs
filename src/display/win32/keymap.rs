@@ -301,7 +301,7 @@ pub const SYMS: [key::Sym; 256] = [
     key::Sym::Unknown,      //  10   0x0A   -- reserved --
     key::Sym::Unknown,      //  11   0x0B   -- reserved --
     key::Sym::Clear,        //  12   0x0C   VK_CLEAR            | Clear key
-    key::Sym::Return,      //  13   0x0D   VK_RETURN           | Enter key
+    key::Sym::Return,       //  13   0x0D   VK_RETURN           | Enter key
     key::Sym::Unknown,      //  14   0x0E   -- unassigned --
     key::Sym::Unknown,      //  15   0x0F   -- unassigned --
     key::Sym::Shift,        //  16   0x10   VK_SHIFT            | Shift key
@@ -311,9 +311,9 @@ pub const SYMS: [key::Sym; 256] = [
     key::Sym::CapsLock,     //  20   0x14   VK_CAPITAL          | Caps-Lock
     key::Sym::Unknown,      //  21   0x15   VK_KANA / VK_HANGUL | IME Kana or Hangul mode
     key::Sym::Unknown,      //  22   0x16   -- unassigned --
-    key::Sym::Unknown,       //  23   0x17   VK_JUNJA            | IME Junja mode
-    key::Sym::Unknown,       //  24   0x18   VK_FINAL            | IME final mode
-    key::Sym::Unknown,        //  25   0x19   VK_HANJA / VK_KANJI | IME Hanja or Kanji mode
+    key::Sym::Unknown,      //  23   0x17   VK_JUNJA            | IME Junja mode
+    key::Sym::Unknown,      //  24   0x18   VK_FINAL            | IME final mode
+    key::Sym::Unknown,      //  25   0x19   VK_HANJA / VK_KANJI | IME Hanja or Kanji mode
     key::Sym::Unknown,      //  26   0x1A   -- unassigned --
     key::Sym::Escape,       //  27   0x1B   VK_ESCAPE           | Esc key
     key::Sym::Unknown,      //  28   0x1C   VK_CONVERT          | IME convert
@@ -334,18 +334,18 @@ pub const SYMS: [key::Sym; 256] = [
     key::Sym::Execute,      //  43   0x2B   VK_EXECUTE          | Execute key
     key::Sym::Print,        //  44   0x2C   VK_SNAPSHOT         | Print Screen key
     key::Sym::Insert,       //  45   0x2D   VK_INSERT           | Ins key
-    key::Sym::Delete,      //  46   0x2E   VK_DELETE           | Del key
+    key::Sym::Delete,       //  46   0x2E   VK_DELETE           | Del key
     key::Sym::Help,         //  47   0x2F   VK_HELP             | Help key
-    key::Sym::D0,         //  48   0x30   (VK_0)              | 0 key
-    key::Sym::D1,         //  49   0x31   (VK_1)              | 1 key
-    key::Sym::D2,         //  50   0x32   (VK_2)              | 2 key
-    key::Sym::D3,         //  51   0x33   (VK_3)              | 3 key
-    key::Sym::D4,         //  52   0x34   (VK_4)              | 4 key
-    key::Sym::D5,         //  53   0x35   (VK_5)              | 5 key
-    key::Sym::D6,         //  54   0x36   (VK_6)              | 6 key
-    key::Sym::D7,         //  55   0x37   (VK_7)              | 7 key
-    key::Sym::D8,         //  56   0x38   (VK_8)              | 8 key
-    key::Sym::D9,         //  57   0x39   (VK_9)              | 9 key
+    key::Sym::D0,           //  48   0x30   (VK_0)              | 0 key
+    key::Sym::D1,           //  49   0x31   (VK_1)              | 1 key
+    key::Sym::D2,           //  50   0x32   (VK_2)              | 2 key
+    key::Sym::D3,           //  51   0x33   (VK_3)              | 3 key
+    key::Sym::D4,           //  52   0x34   (VK_4)              | 4 key
+    key::Sym::D5,           //  53   0x35   (VK_5)              | 5 key
+    key::Sym::D6,           //  54   0x36   (VK_6)              | 6 key
+    key::Sym::D7,           //  55   0x37   (VK_7)              | 7 key
+    key::Sym::D8,           //  56   0x38   (VK_8)              | 8 key
+    key::Sym::D9,           //  57   0x39   (VK_9)              | 9 key
     key::Sym::Unknown,      //  58   0x3A   -- unassigned --
     key::Sym::Unknown,      //  59   0x3B   -- unassigned --
     key::Sym::Unknown,      //  60   0x3C   -- unassigned --
@@ -353,32 +353,32 @@ pub const SYMS: [key::Sym; 256] = [
     key::Sym::Unknown,      //  62   0x3E   -- unassigned --
     key::Sym::Unknown,      //  63   0x3F   -- unassigned --
     key::Sym::Unknown,      //  64   0x40   -- unassigned --
-    key::Sym::A,         //  65   0x41   (VK_A)              | A key
-    key::Sym::B,         //  66   0x42   (VK_B)              | B key
-    key::Sym::C,         //  67   0x43   (VK_C)              | C key
-    key::Sym::D,         //  68   0x44   (VK_D)              | D key
-    key::Sym::E,         //  69   0x45   (VK_E)              | E key
-    key::Sym::F,         //  70   0x46   (VK_F)              | F key
-    key::Sym::G,         //  71   0x47   (VK_G)              | G key
-    key::Sym::H,         //  72   0x48   (VK_H)              | H key
-    key::Sym::I,         //  73   0x49   (VK_I)              | I key
-    key::Sym::J,         //  74   0x4A   (VK_J)              | J key
-    key::Sym::K,         //  75   0x4B   (VK_K)              | K key
-    key::Sym::L,         //  76   0x4C   (VK_L)              | L key
-    key::Sym::M,         //  77   0x4D   (VK_M)              | M key
-    key::Sym::N,         //  78   0x4E   (VK_N)              | N key
-    key::Sym::O,         //  79   0x4F   (VK_O)              | O key
-    key::Sym::P,         //  80   0x50   (VK_P)              | P key
-    key::Sym::Q,         //  81   0x51   (VK_Q)              | Q key
-    key::Sym::R,         //  82   0x52   (VK_R)              | R key
-    key::Sym::S,         //  83   0x53   (VK_S)              | S key
-    key::Sym::T,         //  84   0x54   (VK_T)              | T key
-    key::Sym::U,         //  85   0x55   (VK_U)              | U key
-    key::Sym::V,         //  86   0x56   (VK_V)              | V key
-    key::Sym::W,         //  87   0x57   (VK_W)              | W key
-    key::Sym::X,         //  88   0x58   (VK_X)              | X key
-    key::Sym::Y,         //  89   0x59   (VK_Y)              | Y key
-    key::Sym::Z,         //  90   0x5A   (VK_Z)              | Z key
+    key::Sym::A,            //  65   0x41   (VK_A)              | A key
+    key::Sym::B,            //  66   0x42   (VK_B)              | B key
+    key::Sym::C,            //  67   0x43   (VK_C)              | C key
+    key::Sym::D,            //  68   0x44   (VK_D)              | D key
+    key::Sym::E,            //  69   0x45   (VK_E)              | E key
+    key::Sym::F,            //  70   0x46   (VK_F)              | F key
+    key::Sym::G,            //  71   0x47   (VK_G)              | G key
+    key::Sym::H,            //  72   0x48   (VK_H)              | H key
+    key::Sym::I,            //  73   0x49   (VK_I)              | I key
+    key::Sym::J,            //  74   0x4A   (VK_J)              | J key
+    key::Sym::K,            //  75   0x4B   (VK_K)              | K key
+    key::Sym::L,            //  76   0x4C   (VK_L)              | L key
+    key::Sym::M,            //  77   0x4D   (VK_M)              | M key
+    key::Sym::N,            //  78   0x4E   (VK_N)              | N key
+    key::Sym::O,            //  79   0x4F   (VK_O)              | O key
+    key::Sym::P,            //  80   0x50   (VK_P)              | P key
+    key::Sym::Q,            //  81   0x51   (VK_Q)              | Q key
+    key::Sym::R,            //  82   0x52   (VK_R)              | R key
+    key::Sym::S,            //  83   0x53   (VK_S)              | S key
+    key::Sym::T,            //  84   0x54   (VK_T)              | T key
+    key::Sym::U,            //  85   0x55   (VK_U)              | U key
+    key::Sym::V,            //  86   0x56   (VK_V)              | V key
+    key::Sym::W,            //  87   0x57   (VK_W)              | W key
+    key::Sym::X,            //  88   0x58   (VK_X)              | X key
+    key::Sym::Y,            //  89   0x59   (VK_Y)              | Y key
+    key::Sym::Z,            //  90   0x5A   (VK_Z)              | Z key
     key::Sym::LeftSuper,    //  91   0x5B   VK_LWIN             | Left Windows  - MS Natural kbd
     key::Sym::RightSuper,   //  92   0x5C   VK_RWIN             | Right Windows - MS Natural kbd
     key::Sym::Menu,         //  93   0x5D   VK_APPS             | Application key-MS Natural kbd
@@ -437,92 +437,92 @@ pub const SYMS: [key::Sym; 256] = [
     // Fujitsu/OASYS kbd --------------------
     key::Sym::Unknown, // 146   0x92   VK_OEM_FJ_JISHO     | 'Dictionary' key /
     //              VK_OEM_NEC_EQUAL  = key on numpad on NEC PC-9800 kbd
-    key::Sym::Unknown, // 147   0x93   VK_OEM_FJ_MASSHOU   | 'Unregister word' key
-    key::Sym::Unknown, // 148   0x94   VK_OEM_FJ_TOUROKU   | 'Register word' key
-    key::Sym::Unknown, // 149   0x95   VK_OEM_FJ_LOYA      | 'Left OYAYUBI' key
-    key::Sym::Unknown, // 150   0x96   VK_OEM_FJ_ROYA      | 'Right OYAYUBI' key
-    key::Sym::Unknown, // 151   0x97   -- unassigned --
-    key::Sym::Unknown, // 152   0x98   -- unassigned --
-    key::Sym::Unknown, // 153   0x99   -- unassigned --
-    key::Sym::Unknown, // 154   0x9A   -- unassigned --
-    key::Sym::Unknown, // 155   0x9B   -- unassigned --
-    key::Sym::Unknown, // 156   0x9C   -- unassigned --
-    key::Sym::Unknown, // 157   0x9D   -- unassigned --
-    key::Sym::Unknown, // 158   0x9E   -- unassigned --
-    key::Sym::Unknown, // 159   0x9F   -- unassigned --
+    key::Sym::Unknown,   // 147   0x93   VK_OEM_FJ_MASSHOU   | 'Unregister word' key
+    key::Sym::Unknown,   // 148   0x94   VK_OEM_FJ_TOUROKU   | 'Register word' key
+    key::Sym::Unknown,   // 149   0x95   VK_OEM_FJ_LOYA      | 'Left OYAYUBI' key
+    key::Sym::Unknown,   // 150   0x96   VK_OEM_FJ_ROYA      | 'Right OYAYUBI' key
+    key::Sym::Unknown,   // 151   0x97   -- unassigned --
+    key::Sym::Unknown,   // 152   0x98   -- unassigned --
+    key::Sym::Unknown,   // 153   0x99   -- unassigned --
+    key::Sym::Unknown,   // 154   0x9A   -- unassigned --
+    key::Sym::Unknown,   // 155   0x9B   -- unassigned --
+    key::Sym::Unknown,   // 156   0x9C   -- unassigned --
+    key::Sym::Unknown,   // 157   0x9D   -- unassigned --
+    key::Sym::Unknown,   // 158   0x9E   -- unassigned --
+    key::Sym::Unknown,   // 159   0x9F   -- unassigned --
     key::Sym::LeftShift, // 160   0xA0   VK_LSHIFT           | Left Shift key
     key::Sym::RightShift, // 161   0xA1   VK_RSHIFT           | Right Shift key
-    key::Sym::LeftCtrl, // 162   0xA2   VK_LCONTROL         | Left Ctrl key
+    key::Sym::LeftCtrl,  // 162   0xA2   VK_LCONTROL         | Left Ctrl key
     key::Sym::RightCtrl, // 163   0xA3   VK_RCONTROL         | Right Ctrl key
-    key::Sym::LeftAlt, // 164   0xA4   VK_LMENU            | Left Menu key
-    key::Sym::RightAlt, // 165   0xA5   VK_RMENU            | Right Menu key
-    key::Sym::Unknown, // 166   0xA6   VK_BROWSER_BACK     | Browser Back key
-    key::Sym::Unknown, // 167   0xA7   VK_BROWSER_FORWARD  | Browser Forward key
-    key::Sym::Unknown, // 168   0xA8   VK_BROWSER_REFRESH  | Browser Refresh key
-    key::Sym::Unknown, // 169   0xA9   VK_BROWSER_STOP     | Browser Stop key
-    key::Sym::Unknown, // 170   0xAA   VK_BROWSER_SEARCH   | Browser Search key
-    key::Sym::Unknown, // 171   0xAB   VK_BROWSER_FAVORITES| Browser Favorites key
-    key::Sym::Unknown, // 172   0xAC   VK_BROWSER_HOME     | Browser Start and Home key
+    key::Sym::LeftAlt,   // 164   0xA4   VK_LMENU            | Left Menu key
+    key::Sym::RightAlt,  // 165   0xA5   VK_RMENU            | Right Menu key
+    key::Sym::Unknown,   // 166   0xA6   VK_BROWSER_BACK     | Browser Back key
+    key::Sym::Unknown,   // 167   0xA7   VK_BROWSER_FORWARD  | Browser Forward key
+    key::Sym::Unknown,   // 168   0xA8   VK_BROWSER_REFRESH  | Browser Refresh key
+    key::Sym::Unknown,   // 169   0xA9   VK_BROWSER_STOP     | Browser Stop key
+    key::Sym::Unknown,   // 170   0xAA   VK_BROWSER_SEARCH   | Browser Search key
+    key::Sym::Unknown,   // 171   0xAB   VK_BROWSER_FAVORITES| Browser Favorites key
+    key::Sym::Unknown,   // 172   0xAC   VK_BROWSER_HOME     | Browser Start and Home key
     key::Sym::VolumeMute, // 173   0xAD   VK_VOLUME_MUTE      | Volume Mute key
     key::Sym::VolumeDown, // 174   0xAE   VK_VOLUME_DOWN      | Volume Down key
-    key::Sym::VolumeUp, // 175   0xAF   VK_VOLUME_UP        | Volume Up key
+    key::Sym::VolumeUp,  // 175   0xAF   VK_VOLUME_UP        | Volume Up key
     key::Sym::MediaNext, // 176   0xB0   VK_MEDIA_NEXT_TRACK | Next Track key
     key::Sym::MediaPrevious, // 177   0xB1   VK_MEDIA_PREV_TRACK | Previous Track key
     key::Sym::MediaStop, // 178   0xB2   VK_MEDIA_STOP       | Stop Media key
     key::Sym::MediaPlay, // 179   0xB3   VK_MEDIA_PLAY_PAUSE | Play/Pause Media key
     key::Sym::LaunchMail, // 180   0xB4   VK_LAUNCH_MAIL      | Start Mail key
     key::Sym::LaunchMedia, // 181   0xB5   VK_LAUNCH_MEDIA_SELECT Select Media key
-    key::Sym::Launch0, // 182   0xB6   VK_LAUNCH_APP1      | Start Application 1 key
-    key::Sym::Launch1, // 183   0xB7   VK_LAUNCH_APP2      | Start Application 2 key
-    key::Sym::Unknown, // 184   0xB8   -- reserved --
-    key::Sym::Unknown, // 185   0xB9   -- reserved --
+    key::Sym::Launch0,   // 182   0xB6   VK_LAUNCH_APP1      | Start Application 1 key
+    key::Sym::Launch1,   // 183   0xB7   VK_LAUNCH_APP2      | Start Application 2 key
+    key::Sym::Unknown,   // 184   0xB8   -- reserved --
+    key::Sym::Unknown,   // 185   0xB9   -- reserved --
     key::Sym::Semicolon, // 186   0xBA   VK_OEM_1            | ';:' for US
-    key::Sym::Plus,    // 187   0xBB   VK_OEM_PLUS         | '+' any country
-    key::Sym::Comma,   // 188   0xBC   VK_OEM_COMMA        | ',' any country
-    key::Sym::Minus,   // 189   0xBD   VK_OEM_MINUS        | '-' any country
-    key::Sym::Period,  // 190   0xBE   VK_OEM_PERIOD       | '.' any country
-    key::Sym::Slash,   // 191   0xBF   VK_OEM_2            | '/?' for US
+    key::Sym::Plus,      // 187   0xBB   VK_OEM_PLUS         | '+' any country
+    key::Sym::Comma,     // 188   0xBC   VK_OEM_COMMA        | ',' any country
+    key::Sym::Minus,     // 189   0xBD   VK_OEM_MINUS        | '-' any country
+    key::Sym::Period,    // 190   0xBE   VK_OEM_PERIOD       | '.' any country
+    key::Sym::Slash,     // 191   0xBF   VK_OEM_2            | '/?' for US
     key::Sym::AsciiTilde, // 192   0xC0   VK_OEM_3            | '`~' for US
-    key::Sym::Unknown, // 193   0xC1   -- reserved --
-    key::Sym::Unknown, // 194   0xC2   -- reserved --
-    key::Sym::Unknown, // 195   0xC3   -- reserved --
-    key::Sym::Unknown, // 196   0xC4   -- reserved --
-    key::Sym::Unknown, // 197   0xC5   -- reserved --
-    key::Sym::Unknown, // 198   0xC6   -- reserved --
-    key::Sym::Unknown, // 199   0xC7   -- reserved --
-    key::Sym::Unknown, // 200   0xC8   -- reserved --
-    key::Sym::Unknown, // 201   0xC9   -- reserved --
-    key::Sym::Unknown, // 202   0xCA   -- reserved --
-    key::Sym::Unknown, // 203   0xCB   -- reserved --
-    key::Sym::Unknown, // 204   0xCC   -- reserved --
-    key::Sym::Unknown, // 205   0xCD   -- reserved --
-    key::Sym::Unknown, // 206   0xCE   -- reserved --
-    key::Sym::Unknown, // 207   0xCF   -- reserved --
-    key::Sym::Unknown, // 208   0xD0   -- reserved --
-    key::Sym::Unknown, // 209   0xD1   -- reserved --
-    key::Sym::Unknown, // 210   0xD2   -- reserved --
-    key::Sym::Unknown, // 211   0xD3   -- reserved --
-    key::Sym::Unknown, // 212   0xD4   -- reserved --
-    key::Sym::Unknown, // 213   0xD5   -- reserved --
-    key::Sym::Unknown, // 214   0xD6   -- reserved --
-    key::Sym::Unknown, // 215   0xD7   -- reserved --
-    key::Sym::Unknown, // 216   0xD8   -- unassigned --
-    key::Sym::Unknown, // 217   0xD9   -- unassigned --
-    key::Sym::Unknown, // 218   0xDA   -- unassigned --
+    key::Sym::Unknown,   // 193   0xC1   -- reserved --
+    key::Sym::Unknown,   // 194   0xC2   -- reserved --
+    key::Sym::Unknown,   // 195   0xC3   -- reserved --
+    key::Sym::Unknown,   // 196   0xC4   -- reserved --
+    key::Sym::Unknown,   // 197   0xC5   -- reserved --
+    key::Sym::Unknown,   // 198   0xC6   -- reserved --
+    key::Sym::Unknown,   // 199   0xC7   -- reserved --
+    key::Sym::Unknown,   // 200   0xC8   -- reserved --
+    key::Sym::Unknown,   // 201   0xC9   -- reserved --
+    key::Sym::Unknown,   // 202   0xCA   -- reserved --
+    key::Sym::Unknown,   // 203   0xCB   -- reserved --
+    key::Sym::Unknown,   // 204   0xCC   -- reserved --
+    key::Sym::Unknown,   // 205   0xCD   -- reserved --
+    key::Sym::Unknown,   // 206   0xCE   -- reserved --
+    key::Sym::Unknown,   // 207   0xCF   -- reserved --
+    key::Sym::Unknown,   // 208   0xD0   -- reserved --
+    key::Sym::Unknown,   // 209   0xD1   -- reserved --
+    key::Sym::Unknown,   // 210   0xD2   -- reserved --
+    key::Sym::Unknown,   // 211   0xD3   -- reserved --
+    key::Sym::Unknown,   // 212   0xD4   -- reserved --
+    key::Sym::Unknown,   // 213   0xD5   -- reserved --
+    key::Sym::Unknown,   // 214   0xD6   -- reserved --
+    key::Sym::Unknown,   // 215   0xD7   -- reserved --
+    key::Sym::Unknown,   // 216   0xD8   -- unassigned --
+    key::Sym::Unknown,   // 217   0xD9   -- unassigned --
+    key::Sym::Unknown,   // 218   0xDA   -- unassigned --
     key::Sym::BracketLeft, // 219   0xDB   VK_OEM_4            | '[{' for US
-    key::Sym::Bar,     // 220   0xDC   VK_OEM_5            | '\|' for US
+    key::Sym::Bar,       // 220   0xDC   VK_OEM_5            | '\|' for US
     key::Sym::BracketRight, // 221   0xDD   VK_OEM_6            | ']}' for US
-    key::Sym::Unknown, // 222   0xDE   VK_OEM_7            | ''"' for US
-    key::Sym::Unknown, // 223   0xDF   VK_OEM_8
-    key::Sym::Unknown, // 224   0xE0   -- reserved --
-    key::Sym::Unknown, // 225   0xE1   VK_OEM_AX           | 'AX' key on Japanese AX kbd
-    key::Sym::Unknown, // 226   0xE2   VK_OEM_102          | "<>" or "\|" on RT 102-key kbd
-    key::Sym::Unknown, // 227   0xE3   VK_ICO_HELP         | Help key on ICO
-    key::Sym::Unknown, // 228   0xE4   VK_ICO_00           | 00 key on ICO
-    key::Sym::Unknown, // 229   0xE5   VK_PROCESSKEY       | IME Process key
-    key::Sym::Unknown, // 230   0xE6   VK_ICO_CLEAR        |
-    key::Sym::Unknown, // 231   0xE7   VK_PACKET           | Unicode char as keystrokes
-    key::Sym::Unknown, // 232   0xE8   -- unassigned --
+    key::Sym::Unknown,   // 222   0xDE   VK_OEM_7            | ''"' for US
+    key::Sym::Unknown,   // 223   0xDF   VK_OEM_8
+    key::Sym::Unknown,   // 224   0xE0   -- reserved --
+    key::Sym::Unknown,   // 225   0xE1   VK_OEM_AX           | 'AX' key on Japanese AX kbd
+    key::Sym::Unknown,   // 226   0xE2   VK_OEM_102          | "<>" or "\|" on RT 102-key kbd
+    key::Sym::Unknown,   // 227   0xE3   VK_ICO_HELP         | Help key on ICO
+    key::Sym::Unknown,   // 228   0xE4   VK_ICO_00           | 00 key on ICO
+    key::Sym::Unknown,   // 229   0xE5   VK_PROCESSKEY       | IME Process key
+    key::Sym::Unknown,   // 230   0xE6   VK_ICO_CLEAR        |
+    key::Sym::Unknown,   // 231   0xE7   VK_PACKET           | Unicode char as keystrokes
+    key::Sym::Unknown,   // 232   0xE8   -- unassigned --
     // Nokia/Ericsson definitions ---------------
     key::Sym::Unknown, // 233   0xE9   VK_OEM_RESET
     key::Sym::Unknown, // 234   0xEA   VK_OEM_JUMP
