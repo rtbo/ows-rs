@@ -369,7 +369,7 @@ impl WindowShared {
             mods: key::Mods::empty(),
             mouse_state: mouse::State::empty(),
             mouse_pos: IPoint::new(0, 0),
-            mouse_out: false,
+            mouse_out: true,
         }
     }
 
@@ -455,7 +455,8 @@ impl WindowShared {
                 if self.mouse_out {
                     self.mouse_out = false;
 
-                    // TODO mouse was out: deliver enter event
+                    // mouse was out: deliver enter event
+                    self.event_buf.push(window::Event::MouseEnter(pos, self.mouse_state, mods));
                     // and register for leave event
                     let mut tm = TRACKMOUSEEVENT {
                         cbSize: mem::size_of::<TRACKMOUSEEVENT>() as u32,
@@ -469,9 +470,8 @@ impl WindowShared {
                 self.mouse_move_event(window::Event::MouseMove(pos, self.mouse_state, mods))
             },
             WM_MOUSELEAVE => {
-                // TODO
-                let pos = self.mouse_pos;
-                false
+                self.mouse_out = true;
+                self.event(window::Event::MouseLeave(self.mouse_pos, self.mouse_state, mods))
             },
             _ => { false }
         }

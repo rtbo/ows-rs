@@ -31,9 +31,11 @@ pub enum Event
     Resize(ISize),
     Close,
     State(State),
+    MouseEnter(IPoint, mouse::State, key::Mods),
+    MouseLeave(IPoint, mouse::State, key::Mods),
+    MouseMove(IPoint, mouse::State, key::Mods),
     MouseDown(IPoint, mouse::But, mouse::State, key::Mods),
     MouseUp(IPoint, mouse::But, mouse::State, key::Mods),
-    MouseMove(IPoint, mouse::State, key::Mods),
     KeyDown(key::Sym, key::Code, key::Mods, String),
     KeyUp(key::Sym, key::Code, key::Mods)
 }
