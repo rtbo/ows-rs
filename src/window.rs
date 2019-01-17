@@ -21,6 +21,8 @@ pub trait Window<D : Display>
     fn show (&mut self, state: State);
 
     fn close(&mut self);
+
+    fn retrieve_events(&mut self) -> Vec<Event>;
 }
 
 #[derive(Clone, Debug)]

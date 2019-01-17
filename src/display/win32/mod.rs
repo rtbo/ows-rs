@@ -1,5 +1,6 @@
 
 use crate::window;
+use crate::geometry::ISize;
 use libc::c_int;
 use winapi::shared::basetsd::{LONG_PTR};
 use winapi::shared::windef::*;
@@ -40,6 +41,8 @@ fn to_u16<S : AsRef<str>>(s: S) -> Vec<u16> {
     OsStr::new(s.as_ref()).encode_wide().chain(Some(0).into_iter()).collect()
 }
 
+
+
 pub struct Display
 {
 
@@ -63,6 +66,17 @@ impl super::Display for Display
     fn create_window(&self) -> Window
     {
         Window::new()
+    }
+
+    fn collect_events(&self)
+    {
+        unsafe {
+            let mut msg: MSG = mem::zeroed();
+            while PeekMessageW(&mut msg, ptr::null_mut(), 0, 0, PM_REMOVE) > 0 {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+        }
     }
 }
 
@@ -119,6 +133,7 @@ struct SavedInfo {
 
 struct WindowShared {
     event_buf: Vec<window::Event>,
+    rect: RECT,
 }
 
 impl Window
@@ -161,7 +176,7 @@ impl Window
                 CW_USEDEFAULT, CW_USEDEFAULT, w, h,
                 ptr::null_mut(), ptr::null_mut(), hinstance, ptr::null_mut()
             );
-            let mut shared = Box::new(WindowShared { event_buf: Vec::new() });
+            let mut shared = Box::new(WindowShared::new());
             let shared_ptr = &mut *shared as *mut _; 
             self.shared = Some(shared);
             set_window_long_ptr(hwnd, 0, mem::transmute(shared_ptr));
@@ -279,6 +294,15 @@ impl window::Window<Display> for Window
         self.state = state;
     }
 
+    fn retrieve_events(&mut self) -> Vec<window::Event>
+    {
+        let mut evs = Vec::new();
+        if let Some(ref mut shared) = self.shared.as_mut() {
+            mem::swap(&mut evs, &mut shared.event_buf);
+        }
+        evs
+    }
+
     fn close(&mut self)
     {
         if !self.hwnd.is_null() {
@@ -289,6 +313,51 @@ impl window::Window<Display> for Window
     }
 }
 
+impl WindowShared {
+    fn new() -> WindowShared {
+        WindowShared {
+            event_buf: Vec::new(),
+            rect: unsafe { mem::zeroed() },
+        }
+    }
+    fn geom_change(&mut self, hwnd: HWND) -> Option<window::Event>
+    {
+        let new_r = unsafe {
+            let style = get_window_long_ptr(hwnd, GWL_STYLE);
+            let ex_style = get_window_long_ptr(hwnd, GWL_EXSTYLE);
+
+            let mut wr: RECT = mem::uninitialized();
+            GetWindowRect(hwnd, &mut wr as *mut _);
+            let mut ar = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+            AdjustWindowRectEx(&mut ar as *mut _, style as _, FALSE, ex_style as _);
+
+            wr.left -= ar.left;
+            wr.top -= ar.top;
+            wr.right -= ar.right;
+            wr.bottom -= ar.bottom;
+
+            wr
+        };
+
+        let new_s = rect_size(&new_r);
+        let old_s = rect_size(&self.rect);
+
+        self.rect = new_r;
+
+        if new_s.w != old_s.w || new_s.h != old_s.h {
+            Some(window::Event::Resize(new_s))
+        }
+        else {
+            None
+        }
+    }
+}
+
+fn rect_size(r: &RECT) -> ISize
+{
+    ISize::new(r.right - r.left, r.bottom - r.top)
+}
+
 unsafe extern "system"
 fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT 
 {
@@ -296,17 +365,26 @@ fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRES
     if shared.is_null() {
         return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
-
     let shared: &mut WindowShared = mem::transmute(shared);
 
-    match msg {
-        WM_CLOSE => {
-            println!("closing!");
-            shared.event_buf.push(window::Event::Close);
-            0
+    let ev: Option<window::Event> = match msg {
+        WM_CLOSE => Some(window::Event::Close),
+        WM_SIZE => {
+            match wparam {
+                SIZE_MINIMIZED => None, // TODO: state change event
+                SIZE_MAXIMIZED => shared.geom_change(hwnd),
+                SIZE_RESTORED => shared.geom_change(hwnd),
+                _ => None,
+            }
         },
-        _ => {
-            DefWindowProcW(hwnd, msg, wparam, lparam)
-        }
+        _ => None,
+    };
+
+    if let Some(ev) = ev {
+        shared.event_buf.push(ev);
+        0
+    } 
+    else {
+        DefWindowProcW(hwnd, msg, wparam, lparam)
     }
 }

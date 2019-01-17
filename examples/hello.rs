@@ -16,5 +16,17 @@ fn main() {
 
     win.show(window::State::Normal(Some((640, 480))));
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    'main: loop {
+        dpy.collect_events();
+        for ev in win.retrieve_events() {
+            println!("received event: {:?}", &ev);
+            match ev {
+                window::Event::Close => {
+                    win.close();
+                    break 'main;
+                },
+                _ => {}
+            }
+        }
+    }
 }

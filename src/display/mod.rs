@@ -13,5 +13,8 @@ pub trait Display : Drop + Sized
     type Window : Window<Self>;
 
     fn open() -> Result<Self, Self::OpenError>;
+
     fn create_window(&self) -> Self::Window;
+
+    fn collect_events(&self);
 }
