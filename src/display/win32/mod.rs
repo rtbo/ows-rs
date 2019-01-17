@@ -1,4 +1,6 @@
-use crate::geometry::ISize;
+use crate::geometry::{IPoint, ISize};
+use crate::key;
+use crate::mouse;
 use crate::window;
 use libc::c_int;
 use std::ffi::OsStr;
@@ -8,6 +10,7 @@ use std::ptr;
 use winapi::shared::basetsd::LONG_PTR;
 use winapi::shared::minwindef::*;
 use winapi::shared::windef::*;
+use winapi::shared::windowsx::*;
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::winuser::*;
 
@@ -125,6 +128,10 @@ struct WindowShared {
     event_comp: u32,
     rect: RECT,
     state: window::State,
+    mods: key::Mods,
+    mouse_state: mouse::Buts,
+    mouse_pos: IPoint,
+    mouse_out: bool,
 }
 
 const COMP_RESIZE: u32 = 1;
@@ -359,6 +366,10 @@ impl WindowShared {
             event_comp: 0,
             rect: unsafe { mem::zeroed() },
             state: window::State::Normal(None),
+            mods: key::Mods::default(),
+            mouse_state: mouse::Buts::default(),
+            mouse_pos: IPoint::new(0, 0),
+            mouse_out: false,
         }
     }
 
@@ -411,6 +422,61 @@ impl WindowShared {
         state || geom
     }
 
+    fn mouse_change(&mut self, hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> bool {
+        let pos = IPoint::new(GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam));
+        let mods = self.mods;
+
+        match msg {
+            WM_LBUTTONDOWN => {
+                self.mouse_state |= mouse::Buts::LEFT;
+                self.event(window::Event::MouseDown(pos, mouse::But::Left, self.mouse_state, mods))
+            },
+            WM_MBUTTONDOWN => {
+                self.mouse_state |= mouse::Buts::MIDDLE;
+                self.event(window::Event::MouseDown(pos, mouse::But::Middle, self.mouse_state, mods))
+            },
+            WM_RBUTTONDOWN => {
+                self.mouse_state |= mouse::Buts::RIGHT;
+                self.event(window::Event::MouseDown(pos, mouse::But::Right, self.mouse_state, mods))
+            },
+            WM_LBUTTONUP => {
+                self.mouse_state &= !mouse::Buts::LEFT;
+                self.event(window::Event::MouseUp(pos, mouse::But::Left, self.mouse_state, mods))
+            },
+            WM_MBUTTONUP => {
+                self.mouse_state &= !mouse::Buts::MIDDLE;
+                self.event(window::Event::MouseUp(pos, mouse::But::Middle, self.mouse_state, mods))
+            },
+            WM_RBUTTONUP => {
+                self.mouse_state &= !mouse::Buts::RIGHT;
+                self.event(window::Event::MouseUp(pos, mouse::But::Right, self.mouse_state, mods))
+            },
+            WM_MOUSEMOVE => {
+                if self.mouse_out {
+                    self.mouse_out = false;
+
+                    // TODO mouse was out: deliver enter event
+                    // and register for leave event
+                    let mut tm = TRACKMOUSEEVENT {
+                        cbSize: mem::size_of::<TRACKMOUSEEVENT>() as u32,
+                        dwFlags: TME_LEAVE,
+                        hwndTrack: hwnd,
+                        dwHoverTime: 0
+                    };
+                    unsafe { TrackMouseEvent(&mut tm as *mut _); }
+                }
+                self.mouse_pos = pos;
+                self.mouse_move_event(window::Event::MouseMove(pos, self.mouse_state, mods))
+            },
+            WM_MOUSELEAVE => {
+                // TODO
+                let pos = self.mouse_pos;
+                false
+            },
+            _ => { false }
+        }
+    }
+
     fn event(&mut self, ev: window::Event) -> bool {
         self.event_buf.push(ev);
         true
@@ -427,6 +493,29 @@ impl WindowShared {
                 match ev {
                     window::Event::Resize(_) => {
                         *ev = window::Event::Resize(new_size);
+                        handled = true;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            debug_assert!(handled, "did not find compressed resize event");
+            handled
+        }
+    }
+
+    fn mouse_move_event(&mut self, mm_ev: window::Event) -> bool {
+        // assert ev is mouse move?
+        if self.event_comp & COMP_MOUSE_MOVE == 0 {
+            self.event_buf.push(mm_ev);
+            self.event_comp |= COMP_MOUSE_MOVE;
+            true
+        } else {
+            let mut handled = false;
+            for ev in &mut self.event_buf {
+                match ev {
+                    window::Event::MouseMove(_, _, _) => {
+                        *ev = mm_ev;
                         handled = true;
                         break;
                     }
@@ -464,6 +553,10 @@ unsafe extern "system" fn win32_wnd_proc(
                 SIZE_RESTORED => shared.state_geom_change(hwnd, window::State::Normal(None)),
                 _ => false,
             }
+        }
+        WM_LBUTTONDOWN | WM_LBUTTONUP | WM_MBUTTONDOWN | WM_MBUTTONUP | WM_RBUTTONDOWN
+        | WM_RBUTTONUP | WM_MOUSEMOVE | WM_MOUSELEAVE => {
+            shared.mouse_change(hwnd, msg, wparam, lparam)
         }
         _ => false,
     };

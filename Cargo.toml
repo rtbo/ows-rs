@@ -12,5 +12,5 @@ wayland-client = { version="0.21.10" }
 wayland-protocols = { version="0.21.10", features=["client"] }
 
 [target.'cfg(target_os="windows")'.dependencies]
-winapi = { version="0.3.6", features=["libloaderapi", "winuser"] }
+winapi = { version="0.3.6", features=["libloaderapi", "windowsx", "winuser"] }
 libc = { version="0.2", features=["align"] }

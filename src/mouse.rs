@@ -8,6 +8,12 @@ bitflags!{
     }
 }
 
+impl Default for Buts {
+    fn default() -> Buts {
+        Buts { bits: 0 }
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub enum But
 {
