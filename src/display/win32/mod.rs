@@ -1,16 +1,15 @@
-
-use crate::window;
 use crate::geometry::ISize;
+use crate::window;
 use libc::c_int;
-use winapi::shared::basetsd::{LONG_PTR};
-use winapi::shared::windef::*;
-use winapi::shared::minwindef::*;
-use winapi::um::winuser::*;
-use winapi::um::libloaderapi::GetModuleHandleW;
 use std::ffi::OsStr;
 use std::mem;
 use std::os::windows::ffi::OsStrExt;
 use std::ptr;
+use winapi::shared::basetsd::LONG_PTR;
+use winapi::shared::minwindef::*;
+use winapi::shared::windef::*;
+use winapi::um::libloaderapi::GetModuleHandleW;
+use winapi::um::winuser::*;
 
 const WINDOW_CLASS: &'static str = "ows-rs_window_class";
 
@@ -37,39 +36,32 @@ unsafe fn set_window_long_ptr(hwnd: HWND, index: c_int, value: LONG_PTR) -> LONG
 }
 
 /// convert a String or &str into utf16 string usable in Windows Unicode API
-fn to_u16<S : AsRef<str>>(s: S) -> Vec<u16> {
-    OsStr::new(s.as_ref()).encode_wide().chain(Some(0).into_iter()).collect()
+fn to_u16<S: AsRef<str>>(s: S) -> Vec<u16> {
+    OsStr::new(s.as_ref())
+        .encode_wide()
+        .chain(Some(0).into_iter())
+        .collect()
 }
 
+pub struct Display {}
 
-
-pub struct Display
-{
-
-}
-
-impl Drop for Display
-{
+impl Drop for Display {
     fn drop(&mut self) {}
 }
 
-impl super::Display for Display
-{
+impl super::Display for Display {
     type Window = Window;
     type OpenError = ();
 
-    fn open() -> Result<Display, ()>
-    {
+    fn open() -> Result<Display, ()> {
         Ok(Display::new())
     }
 
-    fn create_window(&self) -> Window
-    {
+    fn create_window(&self) -> Window {
         Window::new()
     }
 
-    fn collect_events(&self)
-    {
+    fn collect_events(&self) {
         unsafe {
             let mut msg: MSG = mem::zeroed();
             while PeekMessageW(&mut msg, ptr::null_mut(), 0, 0, PM_REMOVE) > 0 {
@@ -80,17 +72,16 @@ impl super::Display for Display
     }
 }
 
-impl Display
-{
-    fn new() -> Display
-    {
-        let display = Display{};
-        unsafe { display.register_window_class(); }
+impl Display {
+    fn new() -> Display {
+        let display = Display {};
+        unsafe {
+            display.register_window_class();
+        }
         display
     }
 
-    unsafe fn register_window_class(&self)
-    {
+    unsafe fn register_window_class(&self) {
         let instance = GetModuleHandleW(ptr::null());
         let cls_name = to_u16(WINDOW_CLASS);
 
@@ -115,8 +106,7 @@ impl Display
     }
 }
 
-pub struct Window
-{
+pub struct Window {
     hwnd: HWND,
     title: String,
     saved_info: SavedInfo,
@@ -140,29 +130,36 @@ struct WindowShared {
 const COMP_RESIZE: u32 = 1;
 const COMP_MOUSE_MOVE: u32 = 2;
 
-impl Window
-{
-    fn new() -> Window
-    {
+impl Window {
+    fn new() -> Window {
         Window {
-            hwnd: ptr::null_mut(), 
+            hwnd: ptr::null_mut(),
             title: String::new(),
             saved_info: SavedInfo {
-                rect: RECT {left: 0, top: 0, right: 0, bottom: 0},
+                rect: RECT {
+                    left: 0,
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                },
                 maximized: false,
-                style: 0, ex_style: 0
+                style: 0,
+                ex_style: 0,
             },
             shared: None,
         }
     }
 
-    fn create(&mut self, state: window::State)
-    {
+    fn create(&mut self, state: window::State) {
         let (s_ex, mut s) = (WS_EX_OVERLAPPEDWINDOW, WS_OVERLAPPEDWINDOW);
         match state {
-            window::State::Maximized => { s |= WS_MAXIMIZE; },
-            window::State::Minimized => { s |= WS_MINIMIZE; },
-            _ => {},
+            window::State::Maximized => {
+                s |= WS_MAXIMIZE;
+            }
+            window::State::Minimized => {
+                s |= WS_MINIMIZE;
+            }
+            _ => {}
         }
         let (w, h) = match state {
             window::State::Normal(Some((w, h))) => (w as c_int, h as c_int),
@@ -171,16 +168,24 @@ impl Window
         let cls_name = to_u16(WINDOW_CLASS);
         let title = to_u16(&self.title);
 
-
         self.hwnd = unsafe {
             let hinstance = GetModuleHandleW(ptr::null());
             let hwnd = CreateWindowExW(
-                s_ex, cls_name.as_ptr(), title.as_ptr(), s,
-                CW_USEDEFAULT, CW_USEDEFAULT, w, h,
-                ptr::null_mut(), ptr::null_mut(), hinstance, ptr::null_mut()
+                s_ex,
+                cls_name.as_ptr(),
+                title.as_ptr(),
+                s,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                w,
+                h,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                hinstance,
+                ptr::null_mut(),
             );
             let mut shared = Box::new(WindowShared::new());
-            let shared_ptr = &mut *shared as *mut _; 
+            let shared_ptr = &mut *shared as *mut _;
             self.shared = Some(shared);
             set_window_long_ptr(hwnd, 0, mem::transmute(shared_ptr));
             hwnd
@@ -193,31 +198,33 @@ impl Window
     }
 }
 
-impl window::Window<Display> for Window
-{
-    fn title(&self) -> &str
-    {
+impl window::Window<Display> for Window {
+    fn title(&self) -> &str {
         &self.title
     }
 
-    fn set_title(&mut self, val: String)
-    {
+    fn set_title(&mut self, val: String) {
         self.title = val;
         if !self.hwnd.is_null() {
             let tit = to_u16(&self.title);
-            unsafe { SetWindowTextW(self.hwnd, tit.as_ptr()); }
+            unsafe {
+                SetWindowTextW(self.hwnd, tit.as_ptr());
+            }
         }
     }
 
-    fn show (&mut self, state: window::State)
-    {
+    fn show(&mut self, state: window::State) {
         if self.hwnd.is_null() {
             self.create(state);
-            unsafe { ShowWindow(self.hwnd, SW_SHOWNORMAL); }
+            unsafe {
+                ShowWindow(self.hwnd, SW_SHOWNORMAL);
+            }
         }
 
         let mut shared = self.shared.as_mut().unwrap();
-        if state == shared.state { return; }
+        if state == shared.state {
+            return;
+        }
 
         match (shared.state, state) {
             (_, window::State::Fullscreen) => {
@@ -229,13 +236,15 @@ impl window::Window<Display> for Window
                     self.saved_info.maximized = IsZoomed(self.hwnd) != 0;
                     if self.saved_info.maximized {
                         SendMessageW(self.hwnd, WM_SYSCOMMAND, SC_RESTORE, 0);
-                    } 
+                    }
 
                     // Set new window style and size.
                     let style = self.saved_info.style & !(WS_CAPTION | WS_THICKFRAME);
-                    let ex_style = self.saved_info.ex_style & !(
-                        WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE
-                    );
+                    let ex_style = self.saved_info.ex_style
+                        & !(WS_EX_DLGMODALFRAME
+                            | WS_EX_WINDOWEDGE
+                            | WS_EX_CLIENTEDGE
+                            | WS_EX_STATICEDGE);
                     set_window_long_ptr(self.hwnd, GWL_STYLE, style as LONG_PTR);
                     set_window_long_ptr(self.hwnd, GWL_EXSTYLE, ex_style as LONG_PTR);
 
@@ -243,55 +252,79 @@ impl window::Window<Display> for Window
                     // not resize.
                     let mut minfo = MONITORINFO {
                         cbSize: mem::size_of::<MONITORINFO>() as DWORD,
-                        rcMonitor: RECT { left: 0, top: 0, right: 0, bottom: 0 },
-                        rcWork: RECT { left: 0, top: 0, right: 0, bottom: 0 },
+                        rcMonitor: RECT {
+                            left: 0,
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                        },
+                        rcWork: RECT {
+                            left: 0,
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                        },
                         dwFlags: 0,
                     };
-                    GetMonitorInfoW(MonitorFromWindow(self.hwnd, MONITOR_DEFAULTTONEAREST), &mut minfo as *mut _);
+                    GetMonitorInfoW(
+                        MonitorFromWindow(self.hwnd, MONITOR_DEFAULTTONEAREST),
+                        &mut minfo as *mut _,
+                    );
                     let r = minfo.rcMonitor;
                     let (w, h) = (r.right - r.left, r.bottom - r.top);
                     SetWindowPos(
-                        self.hwnd, ptr::null_mut(), r.left, r.top, w, h,
-                        SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED
+                        self.hwnd,
+                        ptr::null_mut(),
+                        r.left,
+                        r.top,
+                        w,
+                        h,
+                        SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
                     );
                 }
-            },
-            (window::State::Fullscreen, _) => {
-                unsafe {
-                    set_window_long_ptr(self.hwnd, GWL_STYLE, self.saved_info.style as LONG_PTR);
-                    set_window_long_ptr(self.hwnd, GWL_EXSTYLE, self.saved_info.ex_style as LONG_PTR);
-                    let r = self.saved_info.rect;
-                    let (w, h) = (r.right - r.left, r.bottom - r.top);
-                    SetWindowPos(
-                        self.hwnd, ptr::null_mut(), r.left, r.top, w, h,
-                        SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED
-                    );
-                    if self.saved_info.maximized {
-                        SendMessageW(self.hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
-                    }
+            }
+            (window::State::Fullscreen, _) => unsafe {
+                set_window_long_ptr(self.hwnd, GWL_STYLE, self.saved_info.style as LONG_PTR);
+                set_window_long_ptr(self.hwnd, GWL_EXSTYLE, self.saved_info.ex_style as LONG_PTR);
+                let r = self.saved_info.rect;
+                let (w, h) = (r.right - r.left, r.bottom - r.top);
+                SetWindowPos(
+                    self.hwnd,
+                    ptr::null_mut(),
+                    r.left,
+                    r.top,
+                    w,
+                    h,
+                    SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+                );
+                if self.saved_info.maximized {
+                    SendMessageW(self.hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
                 }
             },
             _ => {}
         }
 
         match state {
-            window::State::Normal(sz @ _) => {
-                unsafe { 
-                    ShowWindow(self.hwnd, SW_SHOWNORMAL); 
-                    if let Some((w, h)) = sz {
-                        let r = self.saved_info.rect;
-                        SetWindowPos(
-                            self.hwnd, ptr::null_mut(), r.left, r.top, w as c_int, h as c_int,
-                            SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED
-                        );
-                    }
+            window::State::Normal(sz @ _) => unsafe {
+                ShowWindow(self.hwnd, SW_SHOWNORMAL);
+                if let Some((w, h)) = sz {
+                    let r = self.saved_info.rect;
+                    SetWindowPos(
+                        self.hwnd,
+                        ptr::null_mut(),
+                        r.left,
+                        r.top,
+                        w as c_int,
+                        h as c_int,
+                        SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+                    );
                 }
             },
-            window::State::Maximized => {
-                unsafe { ShowWindow(self.hwnd, SW_MAXIMIZE); }
+            window::State::Maximized => unsafe {
+                ShowWindow(self.hwnd, SW_MAXIMIZE);
             },
-            window::State::Minimized => {
-                unsafe { ShowWindow(self.hwnd, SW_MINIMIZE); }
+            window::State::Minimized => unsafe {
+                ShowWindow(self.hwnd, SW_MINIMIZE);
             },
             _ => {}
         }
@@ -299,8 +332,7 @@ impl window::Window<Display> for Window
         shared.state = state;
     }
 
-    fn retrieve_events(&mut self) -> Vec<window::Event>
-    {
+    fn retrieve_events(&mut self) -> Vec<window::Event> {
         let mut evs = Vec::new();
         if let Some(ref mut shared) = self.shared.as_mut() {
             mem::swap(&mut evs, &mut shared.event_buf);
@@ -309,10 +341,11 @@ impl window::Window<Display> for Window
         evs
     }
 
-    fn close(&mut self)
-    {
+    fn close(&mut self) {
         if !self.hwnd.is_null() {
-            unsafe { DestroyWindow(self.hwnd); }
+            unsafe {
+                DestroyWindow(self.hwnd);
+            }
             self.hwnd = ptr::null_mut();
             self.shared = None;
         }
@@ -320,7 +353,6 @@ impl window::Window<Display> for Window
 }
 
 impl WindowShared {
-
     fn new() -> WindowShared {
         WindowShared {
             event_buf: Vec::new(),
@@ -330,8 +362,7 @@ impl WindowShared {
         }
     }
 
-    fn state_change(&mut self, state: window::State) -> bool
-    {
+    fn state_change(&mut self, state: window::State) -> bool {
         if state != self.state {
             self.event_buf.push(window::Event::State(state));
             self.state = state;
@@ -339,15 +370,19 @@ impl WindowShared {
         true
     }
 
-    fn geom_change(&mut self, hwnd: HWND) -> bool
-    {
+    fn geom_change(&mut self, hwnd: HWND) -> bool {
         let new_r = unsafe {
             let style = get_window_long_ptr(hwnd, GWL_STYLE);
             let ex_style = get_window_long_ptr(hwnd, GWL_EXSTYLE);
 
             let mut wr: RECT = mem::uninitialized();
             GetWindowRect(hwnd, &mut wr as *mut _);
-            let mut ar = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+            let mut ar = RECT {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            };
             AdjustWindowRectEx(&mut ar as *mut _, style as _, FALSE, ex_style as _);
 
             wr.left -= ar.left;
@@ -365,14 +400,12 @@ impl WindowShared {
 
         if new_s.w != old_s.w || new_s.h != old_s.h {
             self.resize_event(new_s)
-        }
-        else {
+        } else {
             false
         }
     }
 
-    fn state_geom_change(&mut self, hwnd: HWND, state: window::State) -> bool
-    {
+    fn state_geom_change(&mut self, hwnd: HWND, state: window::State) -> bool {
         let state = self.state_change(state);
         let geom = self.geom_change(hwnd);
         state || geom
@@ -388,8 +421,7 @@ impl WindowShared {
             self.event_buf.push(window::Event::Resize(new_size));
             self.event_comp |= COMP_RESIZE;
             true
-        }
-        else {
+        } else {
             let mut handled = false;
             for ev in &mut self.event_buf {
                 match ev {
@@ -397,8 +429,8 @@ impl WindowShared {
                         *ev = window::Event::Resize(new_size);
                         handled = true;
                         break;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
             debug_assert!(handled, "did not find compressed resize event");
@@ -407,14 +439,16 @@ impl WindowShared {
     }
 }
 
-fn rect_size(r: &RECT) -> ISize
-{
+fn rect_size(r: &RECT) -> ISize {
     ISize::new(r.right - r.left, r.bottom - r.top)
 }
 
-unsafe extern "system"
-fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT 
-{
+unsafe extern "system" fn win32_wnd_proc(
+    hwnd: HWND,
+    msg: UINT,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
     let shared: *mut WindowShared = mem::transmute(get_window_long_ptr(hwnd, 0));
     if shared.is_null() {
         return DefWindowProcW(hwnd, msg, wparam, lparam);
@@ -430,14 +464,13 @@ fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRES
                 SIZE_RESTORED => shared.state_geom_change(hwnd, window::State::Normal(None)),
                 _ => false,
             }
-        },
+        }
         _ => false,
     };
 
     if handled {
         0
-    }
-    else {
+    } else {
         DefWindowProcW(hwnd, msg, wparam, lparam)
     }
 }
