@@ -15,12 +15,6 @@ bitflags!{
     }
 }
 
-impl Default for Mods {
-    fn default() -> Mods {
-        Mods { bits: 0 }
-    }
-}
-
 /// Represents a physical key (or scancode), using QWERTY US keymap as basis.
 /// I.e. the key "A" on an AZERTY keyboard is represented by `Code::Q`.
 /// This enum has 256 values and is a perfect candidate for index based

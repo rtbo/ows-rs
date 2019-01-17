@@ -129,7 +129,7 @@ struct WindowShared {
     rect: RECT,
     state: window::State,
     mods: key::Mods,
-    mouse_state: mouse::Buts,
+    mouse_state: mouse::State,
     mouse_pos: IPoint,
     mouse_out: bool,
 }
@@ -366,8 +366,8 @@ impl WindowShared {
             event_comp: 0,
             rect: unsafe { mem::zeroed() },
             state: window::State::Normal(None),
-            mods: key::Mods::default(),
-            mouse_state: mouse::Buts::default(),
+            mods: key::Mods::empty(),
+            mouse_state: mouse::State::empty(),
             mouse_pos: IPoint::new(0, 0),
             mouse_out: false,
         }
@@ -428,27 +428,27 @@ impl WindowShared {
 
         match msg {
             WM_LBUTTONDOWN => {
-                self.mouse_state |= mouse::Buts::LEFT;
+                self.mouse_state.insert(mouse::State::LEFT);
                 self.event(window::Event::MouseDown(pos, mouse::But::Left, self.mouse_state, mods))
             },
             WM_MBUTTONDOWN => {
-                self.mouse_state |= mouse::Buts::MIDDLE;
+                self.mouse_state.insert(mouse::State::MIDDLE);
                 self.event(window::Event::MouseDown(pos, mouse::But::Middle, self.mouse_state, mods))
             },
             WM_RBUTTONDOWN => {
-                self.mouse_state |= mouse::Buts::RIGHT;
+                self.mouse_state.insert(mouse::State::RIGHT);
                 self.event(window::Event::MouseDown(pos, mouse::But::Right, self.mouse_state, mods))
             },
             WM_LBUTTONUP => {
-                self.mouse_state &= !mouse::Buts::LEFT;
+                self.mouse_state.remove(mouse::State::LEFT);
                 self.event(window::Event::MouseUp(pos, mouse::But::Left, self.mouse_state, mods))
             },
             WM_MBUTTONUP => {
-                self.mouse_state &= !mouse::Buts::MIDDLE;
+                self.mouse_state.remove(mouse::State::MIDDLE);
                 self.event(window::Event::MouseUp(pos, mouse::But::Middle, self.mouse_state, mods))
             },
             WM_RBUTTONUP => {
-                self.mouse_state &= !mouse::Buts::RIGHT;
+                self.mouse_state.remove(mouse::State::RIGHT);
                 self.event(window::Event::MouseUp(pos, mouse::But::Right, self.mouse_state, mods))
             },
             WM_MOUSEMOVE => {
