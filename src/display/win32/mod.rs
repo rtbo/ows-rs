@@ -133,8 +133,12 @@ struct SavedInfo {
 
 struct WindowShared {
     event_buf: Vec<window::Event>,
+    event_comp: u32,
     rect: RECT,
 }
+
+const COMP_RESIZE: u32 = 1;
+const COMP_MOUSE_MOVE: u32 = 2;
 
 impl Window
 {
@@ -299,6 +303,7 @@ impl window::Window<Display> for Window
         let mut evs = Vec::new();
         if let Some(ref mut shared) = self.shared.as_mut() {
             mem::swap(&mut evs, &mut shared.event_buf);
+            shared.event_comp = 0;
         }
         evs
     }
@@ -317,10 +322,11 @@ impl WindowShared {
     fn new() -> WindowShared {
         WindowShared {
             event_buf: Vec::new(),
+            event_comp: 0,
             rect: unsafe { mem::zeroed() },
         }
     }
-    fn geom_change(&mut self, hwnd: HWND) -> Option<window::Event>
+    fn geom_change(&mut self, hwnd: HWND) -> bool
     {
         let new_r = unsafe {
             let style = get_window_long_ptr(hwnd, GWL_STYLE);
@@ -345,10 +351,35 @@ impl WindowShared {
         self.rect = new_r;
 
         if new_s.w != old_s.w || new_s.h != old_s.h {
-            Some(window::Event::Resize(new_s))
+            self.resize_event(new_s);
+            true
         }
         else {
-            None
+            false
+        }
+    }
+
+    fn event(&mut self, ev: window::Event) -> bool {
+        self.event_buf.push(ev);
+        true
+    }
+
+    fn resize_event(&mut self, new_size: ISize)
+    {
+        if self.event_comp & COMP_RESIZE == 0 {
+            self.event_buf.push(window::Event::Resize(new_size));
+            self.event_comp |= COMP_RESIZE;
+        }
+        else {
+            for ev in &mut self.event_buf {
+                match ev {
+                    window::Event::Resize(_) => {
+                        *ev = window::Event::Resize(new_size);
+                        break;
+                    },
+                    _ => {},
+                }
+            }
         }
     }
 }
@@ -367,23 +398,22 @@ fn win32_wnd_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRES
     }
     let shared: &mut WindowShared = mem::transmute(shared);
 
-    let ev: Option<window::Event> = match msg {
-        WM_CLOSE => Some(window::Event::Close),
+    let handled = match msg {
+        WM_CLOSE => shared.event(window::Event::Close),
         WM_SIZE => {
             match wparam {
-                SIZE_MINIMIZED => None, // TODO: state change event
+                SIZE_MINIMIZED => false, // TODO: state change event
                 SIZE_MAXIMIZED => shared.geom_change(hwnd),
                 SIZE_RESTORED => shared.geom_change(hwnd),
-                _ => None,
+                _ => false,
             }
         },
-        _ => None,
+        _ => false,
     };
 
-    if let Some(ev) = ev {
-        shared.event_buf.push(ev);
+    if handled {
         0
-    } 
+    }
     else {
         DefWindowProcW(hwnd, msg, wparam, lparam)
     }
