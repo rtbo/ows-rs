@@ -4,6 +4,7 @@ use crate::mouse;
 use crate::window;
 use libc::c_int;
 use std::ffi::OsStr;
+use std::iter;
 use std::mem;
 use std::os::windows::ffi::OsStrExt;
 use std::ptr;
@@ -13,6 +14,8 @@ use winapi::shared::windef::*;
 use winapi::shared::windowsx::*;
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::winuser::*;
+
+mod keymap;
 
 const WINDOW_CLASS: &'static str = "ows-rs_window_class";
 
@@ -422,7 +425,7 @@ impl WindowShared {
         state || geom
     }
 
-    fn mouse_change(&mut self, hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> bool {
+    fn mouse_change(&mut self, hwnd: HWND, msg: UINT, _wparam: WPARAM, lparam: LPARAM) -> bool {
         let pos = IPoint::new(GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam));
         let mods = self.mods;
 
@@ -459,12 +462,12 @@ impl WindowShared {
                     self.event_buf.push(window::Event::MouseEnter(pos, self.mouse_state, mods));
                     // and register for leave event
                     let mut tm = TRACKMOUSEEVENT {
-                        cbSize: mem::size_of::<TRACKMOUSEEVENT>() as u32,
+                        cbSize: mem::size_of::<TRACKMOUSEEVENT>() as DWORD,
                         dwFlags: TME_LEAVE,
                         hwndTrack: hwnd,
                         dwHoverTime: 0
                     };
-                    unsafe { TrackMouseEvent(&mut tm as *mut _); }
+                    unsafe { TrackMouseEvent(&mut tm); }
                 }
                 self.mouse_pos = pos;
                 self.mouse_move_event(window::Event::MouseMove(pos, self.mouse_state, mods))
@@ -472,6 +475,27 @@ impl WindowShared {
             WM_MOUSELEAVE => {
                 self.mouse_out = true;
                 self.event(window::Event::MouseLeave(self.mouse_pos, self.mouse_state, mods))
+            },
+            _ => { false }
+        }
+    }
+
+    fn key_change(&mut self, hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> bool {
+        debug_assert!(msg != WM_CHAR, "Char msg must be intercepted before delivery!");
+        assert!(wparam < 256);
+
+        let sym = keymap::sym(wparam as u32);
+        let scancode = (lparam as u32 & SCANCODE_MASK) >> SCANCODE_SHIFT;
+        let code = keymap::code(scancode);
+        self.mods = unsafe { key_mods() }; // caching for mouse move. FIXME: mods pressed out of window?
+
+        match msg {
+            WM_KEYDOWN => {
+                let text = unsafe { peek_char_msg(hwnd) };
+                self.event(window::Event::KeyDown(sym, code, self.mods, text))
+            },
+            WM_KEYUP => {
+                self.event(window::Event::KeyUp(sym, code, self.mods))
             },
             _ => { false }
         }
@@ -532,6 +556,39 @@ fn rect_size(r: &RECT) -> ISize {
     ISize::new(r.right - r.left, r.bottom - r.top)
 }
 
+//const PREVIOUS_STATE_MASK: u32 = 0x40000000;
+const REPEAT_COUNT_MASK: u32 = 0x0000ffff;
+const SCANCODE_MASK: u32 = 0x00ff0000;
+const SCANCODE_SHIFT: u32 = 16;
+
+unsafe fn peek_char_msg(hwnd: HWND) -> String {
+    let mut msg: MSG = mem::zeroed();
+    if PeekMessageW(&mut msg, hwnd, WM_CHAR, WM_CHAR, PM_REMOVE) != 0 {
+        let count = msg.lParam as u32 & REPEAT_COUNT_MASK;
+        let utf16: Vec<u16> = iter::repeat(msg.wParam as u16).take(count as usize).collect();
+        String::from_utf16_lossy(&utf16)
+    }
+    else {
+        String::new()
+    }
+}
+
+unsafe fn key_mods() -> key::Mods {
+    let mut mods = key::Mods::empty();
+
+    if GetKeyState(VK_LSHIFT) as u16 & 0x8000 != 0 { mods.insert(key::Mods::LEFT_SHIFT); }
+    if GetKeyState(VK_LCONTROL) as u16 & 0x8000 != 0 { mods.insert(key::Mods::LEFT_CTRL); }
+    if GetKeyState(VK_LMENU) as u16 & 0x8000 != 0 { mods.insert(key::Mods::LEFT_ALT); }
+    if GetKeyState(VK_LWIN) as u16 & 0x8000 != 0 { mods.insert(key::Mods::SUPER); }
+
+    if GetKeyState(VK_RSHIFT) as u16 & 0x8000 != 0 { mods.insert(key::Mods::RIGHT_SHIFT); }
+    if GetKeyState(VK_RCONTROL) as u16 & 0x8000 != 0 { mods.insert(key::Mods::RIGHT_CTRL); }
+    if GetKeyState(VK_RMENU) as u16 & 0x8000 != 0 { mods.insert(key::Mods::RIGHT_ALT); }
+    if GetKeyState(VK_RWIN) as u16 & 0x8000 != 0 { mods.insert(key::Mods::SUPER); }
+
+    mods
+}
+
 unsafe extern "system" fn win32_wnd_proc(
     hwnd: HWND,
     msg: UINT,
@@ -557,7 +614,10 @@ unsafe extern "system" fn win32_wnd_proc(
         WM_LBUTTONDOWN | WM_LBUTTONUP | WM_MBUTTONDOWN | WM_MBUTTONUP | WM_RBUTTONDOWN
         | WM_RBUTTONUP | WM_MOUSEMOVE | WM_MOUSELEAVE => {
             shared.mouse_change(hwnd, msg, wparam, lparam)
-        }
+        },
+        WM_KEYDOWN | WM_KEYUP | WM_CHAR => {
+            shared.key_change(hwnd, msg, wparam, lparam)
+        },
         _ => false,
     };
 

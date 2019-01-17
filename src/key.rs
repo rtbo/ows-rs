@@ -11,7 +11,6 @@ bitflags!{
         const RIGHT_ALT     = 0x0000_0020;
         const ALT           = Self::LEFT_ALT.bits | Self::RIGHT_ALT.bits;
         const SUPER         = 0x0000_0040;
-        const META          = 0x0000_0080;
     }
 }
 
@@ -107,25 +106,25 @@ pub enum Code {
     Left                = 80,
     Down                = 81,
     Up                  = 82,
-    KP_NumLock          = 83,
-    KP_Divide           = 84,
-    KP_Multiply         = 85,
-    KP_Subtract         = 86,
-    KP_Add              = 87,
-    KP_Enter            = 88,
-    KP_1                = 89,
-    KP_2                = 90,
-    KP_3                = 91,
-    KP_4                = 92,
-    KP_5                = 93,
-    KP_6                = 94,
-    KP_7                = 95,
-    KP_8                = 96,
-    KP_9                = 97,
-    KP_0                = 98,
-    KP_Period           = 99,
+    Kp_NumLock          = 83,
+    Kp_Divide           = 84,
+    Kp_Multiply         = 85,
+    Kp_Subtract         = 86,
+    Kp_Add              = 87,
+    Kp_Enter            = 88,
+    Kp_1                = 89,
+    Kp_2                = 90,
+    Kp_3                = 91,
+    Kp_4                = 92,
+    Kp_5                = 93,
+    Kp_6                = 94,
+    Kp_7                = 95,
+    Kp_8                = 96,
+    Kp_9                = 97,
+    Kp_0                = 98,
+    Kp_Period           = 99,
     UK_Backslash        = 100,
-    KP_Equal            = 103,
+    Kp_Equal            = 103,
     F13                 = 104,
     F14                 = 105,
     F15                 = 106,
@@ -155,8 +154,8 @@ pub enum Code {
     LockingCapsLock     = 130,
     LockingNumLock      = 131,
     LockingScrollLock   = 132,
-    KP_Comma            = 133,
-    KP_EqualSign        = 134,
+    Kp_Comma            = 133,
+    Kp_EqualSign        = 134,
     International1      = 135,
     International2      = 136,
     International3      = 137,
@@ -188,52 +187,52 @@ pub enum Code {
     CrSelProps          = 163,
     ExSel               = 164,
 
-    KP_00               = 176,
-    KP_000              = 177,
+    Kp_00               = 176,
+    Kp_000              = 177,
     ThousandsSep        = 178,
     DecimalSep          = 179,
     CurrencyUnit        = 180,
     CurrencySubUnit     = 181,
-    KP_LeftParent       = 182,
-    KP_RightParent      = 183,
-    KP_LeftCurly        = 184,
-    KP_RightCurly       = 185,
-    KP_Tab              = 186,
-    KP_Backspace        = 187,
-    KP_A                = 188,
-    KP_B                = 189,
-    KP_C                = 190,
-    KP_D                = 191,
-    KP_E                = 192,
-    KP_F                = 193,
-    KP_XOR              = 194,
-    KP_Pow              = 195,
-    KP_Percent          = 196,
-    KP_LeftAngle        = 197,
-    KP_RightAngle       = 198,
-    KP_BitAnd           = 199,
-    KP_LogicAnd         = 200,
-    KP_BitOr            = 201,
-    KP_LogicOr          = 202,
-    KP_Colon            = 203,
-    KP_Hash             = 204,
-    KP_Space            = 205,
-    KP_At               = 206,
-    KP_Not              = 207,
-    KP_MemStore         = 208,
-    KP_MemRecall        = 209,
-    KP_MemClear         = 210,
-    KP_MemAdd           = 211,
-    KP_MemSubtract      = 212,
-    KP_MemMultiply      = 213,
-    KP_MemDivide        = 214,
-    KP_PlusMinus        = 215,
-    KP_Clear            = 216,
-    KP_ClearEntry       = 217,
-    KP_Binary           = 218,
-    KP_Octal            = 219,
-    KP_Decimal          = 220,
-    KP_Hexadecimal      = 221,
+    Kp_LeftParent       = 182,
+    Kp_RightParent      = 183,
+    Kp_LeftCurly        = 184,
+    Kp_RightCurly       = 185,
+    Kp_Tab              = 186,
+    Kp_Backspace        = 187,
+    Kp_A                = 188,
+    Kp_B                = 189,
+    Kp_C                = 190,
+    Kp_D                = 191,
+    Kp_E                = 192,
+    Kp_F                = 193,
+    Kp_XOR              = 194,
+    Kp_Pow              = 195,
+    Kp_Percent          = 196,
+    Kp_LeftAngle        = 197,
+    Kp_RightAngle       = 198,
+    Kp_BitAnd           = 199,
+    Kp_LogicAnd         = 200,
+    Kp_BitOr            = 201,
+    Kp_LogicOr          = 202,
+    Kp_Colon            = 203,
+    Kp_Hash             = 204,
+    Kp_Space            = 205,
+    Kp_At               = 206,
+    Kp_Not              = 207,
+    Kp_MemStore         = 208,
+    Kp_MemRecall        = 209,
+    Kp_MemClear         = 210,
+    Kp_MemAdd           = 211,
+    Kp_MemSubtract      = 212,
+    Kp_MemMultiply      = 213,
+    Kp_MemDivide        = 214,
+    Kp_PlusMinus        = 215,
+    Kp_Clear            = 216,
+    Kp_ClearEntry       = 217,
+    Kp_Binary           = 218,
+    Kp_Octal            = 219,
+    Kp_Decimal          = 220,
+    Kp_Hexadecimal      = 221,
 
     LeftCtrl            = 224,
     LeftShift           = 225,
@@ -321,6 +320,7 @@ pub enum Sym {
     F14,
     F15,
     F16,
+    F17,
     F18,
     F19,
     F20,
@@ -329,89 +329,90 @@ pub enum Sym {
     F23,
     F24,
 
-    KP_Enter                = SYM_KP_MASK | 1,
-    KP_Delete,
-    KP_Home,
-    KP_Begin,
-    KP_End,
-    KP_PageUp,
-    KP_PageDown,
-    KP_Up,
-    KP_Down,
-    KP_Left,
-    KP_Right,
-    KP_Equal,
-    KP_Multiply,
-    KP_Add,
-    KP_Divide,
-    KP_Subtract,
-    KP_Decimal,
-    KP_Separator,
+    Kp_Enter                = SYM_KP_MASK | 1,
+    Kp_Delete,
+    Kp_Home,
+    Kp_Begin,
+    Kp_End,
+    Kp_PageUp,
+    Kp_PageDown,
+    Kp_Up,
+    Kp_Down,
+    Kp_Left,
+    Kp_Right,
+    Kp_Equal,
+    Kp_Multiply,
+    Kp_Add,
+    Kp_Divide,
+    Kp_Subtract,
+    Kp_Decimal,
+    Kp_Separator,
 
-    KP_0,
-    KP_1,
-    KP_2,
-    KP_3,
-    KP_4,
-    KP_6,
-    KP_7,
-    KP_8,
-    KP_9,
+    Kp_0,
+    Kp_1,
+    Kp_2,
+    Kp_3,
+    Kp_4,
+    Kp_5,
+    Kp_6,
+    Kp_7,
+    Kp_8,
+    Kp_9,
 
 
 
-    dead_grave              = SYM_MODS_MASK | 1,
-    dead_acute,
-    dead_circumflex,
-    dead_tilde,
-    dead_macron,
-    dead_breve,
-    dead_abovedot,
-    dead_diaeresis,
-    dead_abovering,
-    dead_doubleacute,
-    dead_caron,
-    dead_cedilla,
-    dead_ogonek,
-    dead_iota,
-    dead_voiced_sound,
-    dead_semivoiced_sound,
-    dead_belowdot,
-    dead_hook,
-    dead_horn,
-    dead_stroke,
-    dead_abovecomma,
-    dead_abovereversedcomma,
-    dead_doublegrave,
-    dead_belowring,
-    dead_belowmacron,
-    dead_belowcircumflex,
-    dead_belowtilde,
-    dead_belowbreve,
-    dead_belowdiaeresis,
-    dead_invertedbreve,
-    dead_belowcomma,
-    dead_currency,
+    Dead_grave              = SYM_MODS_MASK | 1,
+    Dead_acute,
+    Dead_circumflex,
+    Dead_tilde,
+    Dead_macron,
+    Dead_breve,
+    Dead_abovedot,
+    Dead_diaeresis,
+    Dead_abovering,
+    Dead_doubleacute,
+    Dead_caron,
+    Dead_cedilla,
+    Dead_ogonek,
+    Dead_iota,
+    Dead_voiced_sound,
+    Dead_semivoiced_sound,
+    Dead_belowdot,
+    Dead_hook,
+    Dead_horn,
+    Dead_stroke,
+    Dead_abovecomma,
+    Dead_abovereversedcomma,
+    Dead_doublegrave,
+    Dead_belowring,
+    Dead_belowmacron,
+    Dead_belowcircumflex,
+    Dead_belowtilde,
+    Dead_belowbreve,
+    Dead_belowdiaeresis,
+    Dead_invertedbreve,
+    Dead_belowcomma,
+    Dead_currency,
 
 /* extra dead elements for German T3 layout */
-    dead_lowline,
-    dead_aboveverticalline,
-    dead_belowverticalline,
-    dead_longsolidusoverlay,
+    Dead_lowline,
+    Dead_aboveverticalline,
+    Dead_belowverticalline,
+    Dead_longsolidusoverlay,
 
 /* dead vowels for universal syllable entry */
-    dead_a,
-    dead_A,
-    dead_e,
-    dead_E,
-    dead_i,
-    dead_I,
-    dead_o,
-    dead_O,
-    dead_u,
-    dead_U,
-    dead_small_schwa,
-    dead_capital_schwa,
+    Dead_a,
+    Dead_A,
+    Dead_e,
+    Dead_E,
+    Dead_i,
+    Dead_I,
+    Dead_o,
+    Dead_O,
+    Dead_u,
+    Dead_U,
+    Dead_small_schwa,
+    Dead_capital_schwa,
 
     ModeSwitch,
 
@@ -439,22 +440,22 @@ pub enum Sym {
      * (ISO/IEC 8859-1 = Unicode U+0020..U+00FF)
      * Byte 3 = 0
      */
-    space                   = 0x0000_0020,  /* U+0020 SPACE */
-    exclam                  = 0x0000_0021,  /* U+0021 EXCLAMATION MARK */
-    quotedbl                = 0x0000_0022,  /* U+0022 QUOTATION MARK */
-    numbersign              = 0x0000_0023,  /* U+0023 NUMBER SIGN */
-    dollar                  = 0x0000_0024,  /* U+0024 DOLLAR SIGN */
-    percent                 = 0x0000_0025,  /* U+0025 PERCENT SIGN */
-    ampersand               = 0x0000_0026,  /* U+0026 AMPERSAND */
-    apostrophe              = 0x0000_0027,  /* U+0027 APOSTROPHE */
-    parenleft               = 0x0000_0028,  /* U+0028 LEFT PARENTHESIS */
-    parenright              = 0x0000_0029,  /* U+0029 RIGHT PARENTHESIS */
-    asterisk                = 0x0000_002a,  /* U+002A ASTERISK */
-    plus                    = 0x0000_002b,  /* U+002B PLUS SIGN */
-    comma                   = 0x0000_002c,  /* U+002C COMMA */
-    minus                   = 0x0000_002d,  /* U+002D HYPHEN-MINUS */
-    period                  = 0x0000_002e,  /* U+002E FULL STOP */
-    slash                   = 0x0000_002f,  /* U+002F SOLIDUS */
+    Space                   = 0x0000_0020,  /* U+0020 SPACE */
+    Exclam                  = 0x0000_0021,  /* U+0021 EXCLAMATION MARK */
+    Quotedbl                = 0x0000_0022,  /* U+0022 QUOTATION MARK */
+    Numbersign              = 0x0000_0023,  /* U+0023 NUMBER SIGN */
+    Dollar                  = 0x0000_0024,  /* U+0024 DOLLAR SIGN */
+    Percent                 = 0x0000_0025,  /* U+0025 PERCENT SIGN */
+    Ampersand               = 0x0000_0026,  /* U+0026 AMPERSAND */
+    Apostrophe              = 0x0000_0027,  /* U+0027 APOSTROPHE */
+    ParenLeft               = 0x0000_0028,  /* U+0028 LEFT PARENTHESIS */
+    ParenRight              = 0x0000_0029,  /* U+0029 RIGHT PARENTHESIS */
+    Asterisk                = 0x0000_002a,  /* U+002A ASTERISK */
+    Plus                    = 0x0000_002b,  /* U+002B PLUS SIGN */
+    Comma                   = 0x0000_002c,  /* U+002C COMMA */
+    Minus                   = 0x0000_002d,  /* U+002D HYPHEN-MINUS */
+    Period                  = 0x0000_002e,  /* U+002E FULL STOP */
+    Slash                   = 0x0000_002f,  /* U+002F SOLIDUS */
     D0                      = 0x0000_0030,  /* U+0030 DIGIT ZERO */
     D1                      = 0x0000_0031,  /* U+0031 DIGIT ONE */
     D2                      = 0x0000_0032,  /* U+0032 DIGIT TWO */
@@ -465,13 +466,13 @@ pub enum Sym {
     D7                      = 0x0000_0037,  /* U+0037 DIGIT SEVEN */
     D8                      = 0x0000_0038,  /* U+0038 DIGIT EIGHT */
     D9                      = 0x0000_0039,  /* U+0039 DIGIT NINE */
-    colon                   = 0x0000_003a,  /* U+003A COLON */
-    semicolon               = 0x0000_003b,  /* U+003B SEMICOLON */
-    less                    = 0x0000_003c,  /* U+003C LESS-THAN SIGN */
-    equal                   = 0x0000_003d,  /* U+003D EQUALS SIGN */
-    greater                 = 0x0000_003e,  /* U+003E GREATER-THAN SIGN */
-    question                = 0x0000_003f,  /* U+003F QUESTION MARK */
-    at                      = 0x0000_0040,  /* U+0040 COMMERCIAL AT */
+    Colon                   = 0x0000_003a,  /* U+003A COLON */
+    Semicolon               = 0x0000_003b,  /* U+003B SEMICOLON */
+    Less                    = 0x0000_003c,  /* U+003C LESS-THAN SIGN */
+    Equal                   = 0x0000_003d,  /* U+003D EQUALS SIGN */
+    Greater                 = 0x0000_003e,  /* U+003E GREATER-THAN SIGN */
+    Question                = 0x0000_003f,  /* U+003F QUESTION MARK */
+    At                      = 0x0000_0040,  /* U+0040 COMMERCIAL AT */
     A                       = 0x0000_0041,  /* U+0041 LATIN CAPITAL LETTER A */
     B                       = 0x0000_0042,  /* U+0042 LATIN CAPITAL LETTER B */
     C                       = 0x0000_0043,  /* U+0043 LATIN CAPITAL LETTER C */
@@ -498,12 +499,12 @@ pub enum Sym {
     X                       = 0x0000_0058,  /* U+0058 LATIN CAPITAL LETTER X */
     Y                       = 0x0000_0059,  /* U+0059 LATIN CAPITAL LETTER Y */
     Z                       = 0x0000_005a,  /* U+005A LATIN CAPITAL LETTER Z */
-    bracketleft             = 0x0000_005b,  /* U+005B LEFT SQUARE BRACKET */
-    backslash               = 0x0000_005c,  /* U+005C REVERSE SOLIDUS */
-    bracketright            = 0x0000_005d,  /* U+005D RIGHT SQUARE BRACKET */
-    asciicircum             = 0x0000_005e,  /* U+005E CIRCUMFLEX ACCENT */
-    underscore              = 0x0000_005f,  /* U+005F LOW LINE */
-    grave                   = 0x0000_0060,  /* U+0060 GRAVE ACCENT */
+    BracketLeft             = 0x0000_005b,  /* U+005B LEFT SQUARE BRACKET */
+    Backslash               = 0x0000_005c,  /* U+005C REVERSE SOLIDUS */
+    BracketRight            = 0x0000_005d,  /* U+005D RIGHT SQUARE BRACKET */
+    AsciiCircum             = 0x0000_005e,  /* U+005E CIRCUMFLEX ACCENT */
+    Underscore              = 0x0000_005f,  /* U+005F LOW LINE */
+    Grave                   = 0x0000_0060,  /* U+0060 GRAVE ACCENT */
     //a                     = 0x0000_0061,  /* U+0061 LATIN SMALL LETTER A */
     //b                     = 0x0000_0062,  /* U+0062 LATIN SMALL LETTER B */
     //c                     = 0x0000_0063,  /* U+0063 LATIN SMALL LETTER C */
@@ -530,10 +531,10 @@ pub enum Sym {
     //x                     = 0x0000_0078,  /* U+0078 LATIN SMALL LETTER X */
     //y                     = 0x0000_0079,  /* U+0079 LATIN SMALL LETTER Y */
     //z                     = 0x0000_007a,  /* U+007A LATIN SMALL LETTER Z */
-    braceleft               = 0x0000_007b,  /* U+007B LEFT CURLY BRACKET */
-    bar                     = 0x0000_007c,  /* U+007C VERTICAL LINE */
-    braceright              = 0x0000_007d,  /* U+007D RIGHT CURLY BRACKET */
-    asciitilde              = 0x0000_007e,  /* U+007E TILDE */
+    BraceLeft               = 0x0000_007b,  /* U+007B LEFT CURLY BRACKET */
+    Bar                     = 0x0000_007c,  /* U+007C VERTICAL LINE */
+    BraceRight              = 0x0000_007d,  /* U+007D RIGHT CURLY BRACKET */
+    AsciiTilde              = 0x0000_007e,  /* U+007E TILDE */
 
 
     //// dead keys (X keycode - 0xED00 to avoid the conflict)
