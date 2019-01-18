@@ -40,6 +40,8 @@ impl super::Display for Display
     {
         WldWindow::new(self.state.clone())
     }
+
+    fn collect_events(&self) {}
 }
 
 

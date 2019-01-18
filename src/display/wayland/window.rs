@@ -94,4 +94,8 @@ impl display::Window<Display> for WldWindow
     }
 
     fn close(&mut self) {}
+
+    fn retrieve_events(&mut self) -> Vec<window::Event> {
+        Vec::new()
+    }
 }
