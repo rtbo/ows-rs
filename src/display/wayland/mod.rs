@@ -1,7 +1,7 @@
 
 mod window;
 
-use self::window::WldWindow;
+use self::window::Window;
 
 use wlc::ConnectError;
 use wlc::protocol::wl_compositor::{WlCompositor};
@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 pub struct Display
 {
-    state: Rc<RefCell<WldShared>>,
+    shared: Rc<RefCell<DisplayShared>>,
 }
 
 impl Display
@@ -25,27 +25,27 @@ impl Drop for Display
 
 impl super::Display for Display
 {
-    type Window = WldWindow;
+    type Window = Window;
     type OpenError = ConnectError;
 
     fn open() -> Result<Display, ConnectError>
     {
         wlc::Display::connect_to_env()
             .map(|(dpy, queue)| Display {
-                state: WldShared::new(dpy, queue)
+                shared: DisplayShared::new(dpy, queue)
             })
     }
 
-    fn create_window(&self) -> WldWindow
+    fn create_window(&self) -> Window
     {
-        WldWindow::new(self.state.clone())
+        Window::new(self.shared.clone())
     }
 
     fn collect_events(&self) {}
 }
 
 
-struct WldShared
+struct DisplayShared
 {
     _dpy: wlc::Display,
     queue: wlc::EventQueue,
@@ -53,7 +53,7 @@ struct WldShared
     xdg_shell: wlc::Proxy<XdgWmBase>,
 }
 
-impl WldShared
+impl DisplayShared
 {
     fn new (dpy: wlc::Display, mut queue: wlc::EventQueue) -> Rc<RefCell<Self>>
     {
