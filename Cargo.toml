@@ -6,6 +6,9 @@ edition = "2018"
 
 [dependencies]
 bitflags = "1.0"
+gfx-hal = { path="gfx/src/hal" }
+gfx-backend-vulkan = { path="gfx/src/backend/vulkan", features=[] }
+libc = { version="0.2", features=["align"] }
 
 [target.'cfg(unix)'.dependencies]
 wayland-client = { version="0.21.10" }
@@ -13,4 +16,3 @@ wayland-protocols = { version="0.21.10", features=["client"] }
 
 [target.'cfg(target_os="windows")'.dependencies]
 winapi = { version="0.3.6", features=["libloaderapi", "windowsx", "winuser"] }
-libc = { version="0.2", features=["align"] }
