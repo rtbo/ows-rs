@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 use wlc::protocol::wl_compositor::WlCompositor;
 use wlc::ConnectError;
@@ -30,12 +31,31 @@ impl super::Display for Display {
         Window::new(self.shared.clone())
     }
 
-    fn collect_events(&self) {}
+    fn collect_events(&self) {
+        let dpy = &self.shared.dpy;
+        let mut queue = self.shared.queue.borrow_mut();
+
+        dpy.flush().unwrap();
+        queue.dispatch().expect("Error occured during Wayland queue dispatch");
+
+        // let guard = {
+        //     let mut guard = queue.prepare_read();
+        //     while guard.is_none() {
+        //         queue.dispatch_pending().unwrap();
+        //         guard = queue.prepare_read();
+        //     }
+        //     guard.unwrap()
+        // };
+        // dpy.flush().unwrap();
+        // guard.read_events().unwrap();
+        // queue.dispatch_pending().unwrap();
+    }
 }
 
 struct DisplayShared {
-    _dpy: wlc::Display,
-    queue: wlc::EventQueue,
+    dpy: wlc::Display,
+    queue: RefCell<wlc::EventQueue>,
+    queue_token: wlc::QueueToken,
     compositor: wlc::Proxy<WlCompositor>,
     xdg_shell: wlc::Proxy<XdgWmBase>,
 }
@@ -65,9 +85,12 @@ impl DisplayShared {
             println!("{}: {} (version = {})", id, interface, version);
         }
 
+        let token = queue.get_token();
+
         Rc::new(Self {
-            _dpy: dpy,
-            queue: queue,
+            dpy: dpy,
+            queue: RefCell::new(queue),
+            queue_token: token,
             compositor: compositor,
             xdg_shell: xdg_shell,
         })
