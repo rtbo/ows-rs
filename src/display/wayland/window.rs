@@ -9,7 +9,7 @@ use wlp::xdg_shell::client::xdg_toplevel::{self, RequestsTrait as XdgTlReqs, Xdg
 use wlp::xdg_shell::client::xdg_wm_base::RequestsTrait as XdgWmReqs;
 
 pub struct Window {
-    disp_shared: Rc<RefCell<DisplayShared>>,
+    disp_shared: Rc<DisplayShared>,
     shared: Rc<RefCell<WindowShared>>,
     title: String,
 }
@@ -22,7 +22,7 @@ struct WindowShared {
 }
 
 impl Window {
-    pub(super) fn new(shared: Rc<RefCell<DisplayShared>>) -> Window {
+    pub(super) fn new(shared: Rc<DisplayShared>) -> Window {
         Window {
             disp_shared: shared.clone(),
             shared: Rc::new(RefCell::new(WindowShared {
@@ -50,14 +50,12 @@ impl window::Window<Display> for Window {
     }
 
     fn show(&mut self, _: window::State) {
-        let disp_shared = self.disp_shared.borrow();
-
-        let surf = disp_shared
+        let surf = self.disp_shared
             .compositor
             .create_surface(|np| np.implement(|_, _| {}, ()))
             .unwrap();
 
-        let xdg_surf = disp_shared
+        let xdg_surf = self.disp_shared
             .xdg_shell
             .get_xdg_surface(&surf, |np| {
                 np.implement(
@@ -85,7 +83,7 @@ impl window::Window<Display> for Window {
                             xdg_toplevel::Event::Close => {}
                         },
                         (),
-                        &disp_shared.queue.get_token(),
+                        &self.disp_shared.queue.get_token(),
                     )
                 })
                 .unwrap()

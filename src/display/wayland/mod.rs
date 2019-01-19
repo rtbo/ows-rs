@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::rc::Rc;
 use wlc::protocol::wl_compositor::WlCompositor;
 use wlc::ConnectError;
@@ -8,7 +7,7 @@ mod window;
 use self::window::Window;
 
 pub struct Display {
-    shared: Rc<RefCell<DisplayShared>>,
+    shared: Rc<DisplayShared>,
 }
 
 impl Display {}
@@ -42,7 +41,7 @@ struct DisplayShared {
 }
 
 impl DisplayShared {
-    fn new(dpy: wlc::Display, mut queue: wlc::EventQueue) -> Rc<RefCell<Self>> {
+    fn new(dpy: wlc::Display, mut queue: wlc::EventQueue) -> Rc<Self> {
         use wlc::GlobalManager;
 
         let globals = GlobalManager::new(&dpy);
@@ -66,11 +65,11 @@ impl DisplayShared {
             println!("{}: {} (version = {})", id, interface, version);
         }
 
-        Rc::new(RefCell::new(Self {
+        Rc::new(Self {
             _dpy: dpy,
             queue: queue,
             compositor: compositor,
             xdg_shell: xdg_shell,
-        }))
+        })
     }
 }
