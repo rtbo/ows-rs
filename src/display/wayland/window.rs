@@ -23,8 +23,8 @@ struct WindowShared {
 }
 
 struct Surface {
-    _wl: wlc::Proxy<WlSurface>,
-    _xdg: wlc::Proxy<XdgSurface>,
+    wl: wlc::Proxy<WlSurface>,
+    xdg: wlc::Proxy<XdgSurface>,
     xdg_tl: wlc::Proxy<XdgToplevel>,
     gfx: <gfx_back::Backend as gfx_hal::Backend>::Surface,
 }
@@ -62,7 +62,6 @@ impl window::Window<Display> for Window {
             .compositor
             .create_surface(|np| np.implement(|_, _| {}, ()))
             .unwrap();
-
         let xdg_surf = self
             .disp_shared
             .xdg_shell
@@ -75,7 +74,6 @@ impl window::Window<Display> for Window {
                 )
             })
             .unwrap();
-
         let ws = self.shared.clone();
         let xdg_tl = unsafe {
             xdg_surf
@@ -119,14 +117,22 @@ impl window::Window<Display> for Window {
 
         let mut ws = self.shared.borrow_mut();
         ws.surf = Some(Surface {
-            _wl: surf,
-            _xdg: xdg_surf,
+            wl: surf,
+            xdg: xdg_surf,
             xdg_tl: xdg_tl,
             gfx: gfx_surf,
         });
     }
 
-    fn close(&mut self) {}
+    fn close(&mut self) {
+        let mut shared = self.shared.borrow_mut();
+        if let Some(surf) = shared.surf.as_mut() {
+            surf.xdg_tl.destroy();
+            surf.xdg.destroy();
+            surf.wl.destroy();
+        }
+        shared.surf = None;
+    }
 
     fn retrieve_events(&mut self) -> Vec<window::Event> {
         let mut evs = Vec::new();
