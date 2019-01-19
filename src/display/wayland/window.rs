@@ -1,5 +1,5 @@
 use super::{Display, DisplayShared};
-use crate::geometry::ISize;
+use crate::geom::ISize;
 use crate::window;
 use std::cell::RefCell;
 use std::mem;

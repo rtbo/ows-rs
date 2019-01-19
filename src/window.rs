@@ -1,4 +1,4 @@
-use super::geometry::{IPoint, ISize};
+use super::geom::{IPoint, ISize};
 use super::key;
 use super::mouse;
 use crate::display::Display;

@@ -14,7 +14,7 @@ extern crate wayland_protocols as wlp;
 extern crate winapi;
 
 pub mod display;
-pub mod geometry;
+pub mod geom;
 pub mod key;
 pub mod mouse;
 pub mod window;

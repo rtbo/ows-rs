@@ -1,4 +1,4 @@
-use crate::geometry::{IPoint, ISize};
+use crate::geom::{IPoint, ISize};
 use crate::key;
 use crate::mouse;
 use crate::window;
