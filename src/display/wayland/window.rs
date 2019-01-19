@@ -1,5 +1,5 @@
 use super::{Display, DisplayShared};
-use crate::geometry::{ISize};
+use crate::geometry::ISize;
 use crate::window;
 use std::cell::RefCell;
 use std::mem;
@@ -17,11 +17,16 @@ pub struct Window {
 }
 
 struct WindowShared {
-    _surf: Option<wlc::Proxy<WlSurface>>,
-    _xdg_surf: Option<wlc::Proxy<XdgSurface>>,
-    xdg_tl: Option<wlc::Proxy<XdgToplevel>>,
+    surf: Option<Surface>,
     event_buf: Vec<window::Event>,
     size: ISize,
+}
+
+struct Surface {
+    _wl: wlc::Proxy<WlSurface>,
+    _xdg: wlc::Proxy<XdgSurface>,
+    xdg_tl: wlc::Proxy<XdgToplevel>,
+    gfx: <gfx_back::Backend as gfx_hal::Backend>::Surface,
 }
 
 impl Window {
@@ -29,9 +34,7 @@ impl Window {
         Window {
             disp_shared: shared.clone(),
             shared: Rc::new(RefCell::new(WindowShared {
-                _surf: None,
-                _xdg_surf: None,
-                xdg_tl: None,
+                surf: None,
                 event_buf: Vec::new(),
                 size: ISize::new(0, 0),
             })),
@@ -46,20 +49,22 @@ impl window::Window<Display> for Window {
     }
 
     fn set_title(&mut self, val: String) {
-        match &self.shared.borrow_mut().xdg_tl {
-            Some(tl) => tl.set_title(val.clone()),
+        match &self.shared.borrow_mut().surf {
+            Some(surf) => surf.xdg_tl.set_title(val.clone()),
             _ => {}
         }
         self.title = val;
     }
 
-    fn show(&mut self, _: window::State) {
-        let surf = self.disp_shared
+    fn show(&mut self, state: window::State) {
+        let surf = self
+            .disp_shared
             .compositor
             .create_surface(|np| np.implement(|_, _| {}, ()))
             .unwrap();
 
-        let xdg_surf = self.disp_shared
+        let xdg_surf = self
+            .disp_shared
             .xdg_shell
             .get_xdg_surface(&surf, |np| {
                 np.implement(
@@ -77,8 +82,13 @@ impl window::Window<Display> for Window {
                 .get_toplevel(|np| {
                     np.implement_nonsend(
                         move |ev, _| match ev {
-                            xdg_toplevel::Event::Configure { width, height, states, } => {
-                                ws.borrow_mut().handle_configure(ISize::new(width, height), states);
+                            xdg_toplevel::Event::Configure {
+                                width,
+                                height,
+                                states,
+                            } => {
+                                ws.borrow_mut()
+                                    .handle_configure(ISize::new(width, height), states);
                             }
                             xdg_toplevel::Event::Close => {
                                 ws.borrow_mut().handle_close();
@@ -93,12 +103,27 @@ impl window::Window<Display> for Window {
 
         xdg_tl.set_title(self.title.clone());
 
+        let (w, h) = match state {
+            window::State::Normal(Some((w, h))) => (w, h),
+            _ => (640, 480),
+        };
+
+        let gfx_surf = self.disp_shared.instance.create_surface_from_wayland(
+            self.disp_shared.dpy.c_ptr() as _,
+            surf.c_ptr() as _,
+            w as _,
+            h as _,
+        );
+
         surf.commit();
 
         let mut ws = self.shared.borrow_mut();
-        ws._surf = Some(surf);
-        ws._xdg_surf = Some(xdg_surf);
-        ws.xdg_tl = Some(xdg_tl);
+        ws.surf = Some(Surface {
+            _wl: surf,
+            _xdg: xdg_surf,
+            xdg_tl: xdg_tl,
+            gfx: gfx_surf,
+        });
     }
 
     fn close(&mut self) {}

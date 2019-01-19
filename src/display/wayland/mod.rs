@@ -36,7 +36,9 @@ impl super::Display for Display {
         let mut queue = self.shared.queue.borrow_mut();
 
         dpy.flush().unwrap();
-        queue.dispatch().expect("Error occured during Wayland queue dispatch");
+        queue
+            .dispatch()
+            .expect("Error occured during Wayland queue dispatch");
 
         // let guard = {
         //     let mut guard = queue.prepare_read();
@@ -58,6 +60,7 @@ struct DisplayShared {
     queue_token: wlc::QueueToken,
     compositor: wlc::Proxy<WlCompositor>,
     xdg_shell: wlc::Proxy<XdgWmBase>,
+    instance: gfx_back::Instance,
 }
 
 impl DisplayShared {
@@ -93,6 +96,7 @@ impl DisplayShared {
             queue_token: token,
             compositor: compositor,
             xdg_shell: xdg_shell,
+            instance: gfx_back::Instance::create("ows-rs app", 0),
         })
     }
 }
