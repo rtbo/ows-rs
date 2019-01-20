@@ -27,7 +27,7 @@ pub trait Window<D: Display> {
 
     /// Creates a gfx::Surface to render on the window.
     /// This may panic if show was not called before (to be revised)
-    fn create_surface(&self) -> Box<gfx::Surface>;
+    fn create_surface(&self) -> gfx::Surface;
 }
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]

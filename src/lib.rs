@@ -18,5 +18,5 @@ pub mod geom;
 pub mod gfx;
 pub mod key;
 pub mod mouse;
-//pub mod render;
+pub mod render;
 pub mod window;

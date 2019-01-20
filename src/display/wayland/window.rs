@@ -107,7 +107,6 @@ impl window::Window<Display> for Window {
         };
 
         let mut shared = self.shared.borrow_mut();
-        shared.wl_surf.commit();
         shared.size = ISize::new(w as _, h as _);
         shared.xdg = Some(XdgData {
             surf: xdg_surf,
@@ -136,22 +135,20 @@ impl window::Window<Display> for Window {
         window::Token::new(self.shared.borrow().wl_surf.c_ptr() as _)
     }
 
-    fn create_surface(&self) -> Box<gfx::Surface> {
+    fn create_surface(&self) -> gfx::Surface {
         let shared = self.shared.borrow();
         let ISize{w, h} = shared.size;
-        let gfx_surf = self.disp_shared.instance.create_surface_from_wayland(
+        self.disp_shared.instance.create_surface_from_wayland(
             self.disp_shared.dpy.c_ptr() as _,
             shared.wl_surf.c_ptr() as _,
             w as _, h as _,
-        );
-        Box::new(gfx_surf)
+        )
     }
 }
 
 impl WindowShared {
     fn handle_configure(&mut self, size: ISize, states: Vec<u8>) {
         use wlp::xdg_shell::client::xdg_toplevel::State;
-        println!("handle configure: {:?}", size);
         let states: &[State] = unsafe { cast_slice(&states) };
         for state in states {
             println!("configure state: {:?}", state);
