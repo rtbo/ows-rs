@@ -2,6 +2,7 @@ use super::geom::{IPoint, ISize};
 use super::key;
 use super::mouse;
 use crate::display::Display;
+use crate::gfx;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum State {
@@ -12,6 +13,7 @@ pub enum State {
 }
 
 pub trait Window<D: Display> {
+
     fn title(&self) -> &str;
     fn set_title(&mut self, val: String);
 
@@ -20,6 +22,21 @@ pub trait Window<D: Display> {
     fn close(&mut self);
 
     fn retrieve_events(&mut self) -> Vec<Event>;
+
+    fn token(&self) -> Token;
+
+    /// Creates a gfx::Surface to render on the window.
+    /// This may panic if show was not called before (to be revised)
+    fn create_surface(&self) -> Box<gfx::Surface>;
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct Token(usize);
+
+impl Token {
+    pub(crate) fn new (tok: usize) -> Token {
+        Token(tok)
+    }
 }
 
 #[derive(Clone, Debug)]

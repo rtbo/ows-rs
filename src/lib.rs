@@ -15,6 +15,8 @@ extern crate winapi;
 
 pub mod display;
 pub mod geom;
+pub mod gfx;
 pub mod key;
 pub mod mouse;
+//pub mod render;
 pub mod window;

@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 use wlc::protocol::wl_compositor::WlCompositor;
 use wlc::ConnectError;
 use wlp::xdg_shell::client::xdg_wm_base::{self, RequestsTrait as XdgWmReqs, XdgWmBase};
@@ -52,6 +53,10 @@ impl super::Display for Display {
         // guard.read_events().unwrap();
         // queue.dispatch_pending().unwrap();
     }
+
+    fn instance(&self) -> Arc<gfx_back::Instance> {
+        self.shared.instance.clone()
+    }
 }
 
 struct DisplayShared {
@@ -60,7 +65,7 @@ struct DisplayShared {
     queue_token: wlc::QueueToken,
     compositor: wlc::Proxy<WlCompositor>,
     xdg_shell: wlc::Proxy<XdgWmBase>,
-    instance: gfx_back::Instance,
+    instance: Arc<gfx_back::Instance>,
 }
 
 impl DisplayShared {
@@ -96,7 +101,7 @@ impl DisplayShared {
             queue_token: token,
             compositor: compositor,
             xdg_shell: xdg_shell,
-            instance: gfx_back::Instance::create("ows-rs app", 0),
+            instance: Arc::new(gfx_back::Instance::create("ows-rs app", 0)),
         })
     }
 }

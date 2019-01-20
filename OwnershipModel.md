@@ -22,10 +22,6 @@ Can be (should be) on the stack.
 
 Is part of Display, therefore owned by application.
 
-Borrows windows during event collection and dispatch
-    ?? check how can event be delivered while window borrowed
-    ?? alternative
-
 ## Scene
 
 Owned by application
