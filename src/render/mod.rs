@@ -4,7 +4,7 @@ use crate::window;
 use gfx_hal::{
     self as hal, Device, Instance, PhysicalDevice, QueueFamily, Surface, Swapchain,
 };
-use hal::{format::Format, command::CommandBuffer, command::Submittable};
+use hal::{format::Format};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{mpsc, Arc};
@@ -71,7 +71,7 @@ impl Renderer {
         for (idx, adapter) in instance.enumerate_adapters().iter().enumerate() {
             println!("Adapter {}: {:?}", idx, adapter.info);
         }
-        let (adapter, device, mut queues) = instance
+        let (adapter, device, queues) = instance
             .enumerate_adapters()
             .into_iter()
             .map(|a| {
@@ -187,7 +187,7 @@ struct Window {
 
 struct ImageData {
     image: gfx::Image,
-    pool: Rc<RefCell<gfx::CommandPool>>,
+    _pool: Rc<RefCell<gfx::CommandPool>>,
     cmd: gfx::CommandBuffer,
     fence: gfx::Fence,
 }
@@ -195,10 +195,10 @@ struct ImageData {
 impl ImageData {
     fn new(image: gfx::Image, pool: Rc<RefCell<gfx::CommandPool>>, dev: &gfx::Device) -> ImageData {
         let cmd = pool.borrow_mut().acquire_command_buffer();
-        let fence = unsafe { dev.create_fence(true) }.unwrap();
+        let fence = dev.create_fence(true).unwrap();
         ImageData {
             image,
-            pool,
+            _pool: pool,
             cmd,
             fence,
         }
@@ -248,7 +248,7 @@ const COMPALPHA_ORDER: [hal::CompositeAlpha; 4] = [
 
 fn find_surf_comp_alpha(compat: Vec<hal::CompositeAlpha>) -> hal::CompositeAlpha {
     for &wish in &COMPALPHA_ORDER {
-        if let Some(ca) = compat.iter().find(|&&ca| ca == wish) {
+        if let Some(_) = compat.iter().find(|&&ca| ca == wish) {
             return wish;
         }
     }
