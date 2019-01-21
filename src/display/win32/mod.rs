@@ -215,10 +215,12 @@ impl Window {
             hwnd
         };
         let mut shared = self.shared.as_mut().unwrap();
+        println!("state = {:?}", state);
         shared.state = match state {
             window::State::Fullscreen => window::State::Normal(None),
             s @ _ => s,
         };
+        println!("shared.state = {:?}", shared.state);
     }
 }
 
@@ -245,9 +247,19 @@ impl window::Window<Display> for Window {
 
     fn show(&mut self, state: window::State) {
         if self.hwnd.is_null() {
+            assert!(state != window::State::Minimized, "cannot create window in minimized state");
             self.create(state);
-            unsafe {
-                ShowWindow(self.hwnd, SW_SHOWNORMAL);
+            match state {
+                window::State::Fullscreen => {}
+                window::State::Normal(_) => {
+                    unsafe { ShowWindow(self.hwnd, SW_SHOWNORMAL); }
+                    return;
+                }
+                window::State::Maximized => {
+                    unsafe { ShowWindow(self.hwnd, SW_SHOWMAXIMIZED); }
+                    return;
+                }
+                _ => {}
             }
         }
 
@@ -255,6 +267,8 @@ impl window::Window<Display> for Window {
         if state == shared.state {
             return;
         }
+
+        println!("{:?} != {:?}", state, shared.state);
 
         match (shared.state, state) {
             (_, window::State::Fullscreen) => {
@@ -337,6 +351,7 @@ impl window::Window<Display> for Window {
         match state {
             window::State::Normal(sz @ _) => unsafe {
                 ShowWindow(self.hwnd, SW_SHOWNORMAL);
+                println!("change state normal");
                 if let Some((w, h)) = sz {
                     let r = self.saved_info.rect;
                     SetWindowPos(
@@ -599,10 +614,6 @@ impl WindowShared {
             handled
         }
     }
-}
-
-fn rect_size(r: &RECT) -> ISize {
-    ISize::new(r.right - r.left, r.bottom - r.top)
 }
 
 //const PREVIOUS_STATE_MASK: u32 = 0x40000000;
