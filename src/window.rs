@@ -17,9 +17,9 @@ pub trait Window<D: Display> {
     fn title(&self) -> &str;
     fn set_title(&mut self, val: String);
 
-    fn show(&mut self, state: State);
+    fn size(&self) -> ISize;
 
-    fn close(&mut self);
+    fn show(&mut self, state: State);
 
     fn retrieve_events(&mut self) -> Vec<Event>;
 
@@ -28,6 +28,8 @@ pub trait Window<D: Display> {
     /// Creates a gfx::Surface to render on the window.
     /// This may panic if show was not called before (to be revised)
     fn create_surface(&self) -> gfx::Surface;
+
+    fn close(&mut self);
 }
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]

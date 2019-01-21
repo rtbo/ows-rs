@@ -61,6 +61,10 @@ impl window::Window<Display> for Window {
         self.title = val;
     }
 
+    fn size(&self) -> ISize {
+        self.shared.borrow().size
+    }
+
     fn show(&mut self, state: window::State) {
         let xdg_surf = self
             .disp_shared

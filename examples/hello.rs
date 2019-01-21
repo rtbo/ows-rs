@@ -21,17 +21,15 @@ fn main() {
 
     win.show(window::State::Normal(Some((640, 480))));
 
-    // spawn the render thread
-    let inst = dpy.instance();
-    let (tx, rx) = mpsc::sync_channel::<render::Msg>(1);
-    thread::spawn(move || {
-        render::render_loop(inst, rx);
-    });
-
     let token = win.token();
 
-    // let the render thread do the boiler plate for our window
-    tx.send(render::Msg::WindowOpen(token, win.create_surface())).unwrap();
+    // spawn the render thread
+    let inst = dpy.instance();
+    let rwins = vec![ render::WindowInfo::new(token, win.size(), win.create_surface()) ];
+    let (tx, rx) = mpsc::sync_channel::<render::Msg>(1);
+    thread::spawn(move || {
+        render::render_loop(inst, rwins, rx);
+    });
 
     'main: loop {
         dpy.collect_events();
