@@ -1,4 +1,5 @@
-use crate::geom::{IPoint, ISize};
+use crate::geom::{IPoint, IRect, ISize};
+use crate::gfx;
 use crate::key;
 use crate::mouse;
 use crate::window;
@@ -8,6 +9,8 @@ use std::iter;
 use std::mem;
 use std::os::windows::ffi::OsStrExt;
 use std::ptr;
+use std::rc::Rc;
+use std::sync::Arc;
 use winapi::shared::basetsd::LONG_PTR;
 use winapi::shared::minwindef::*;
 use winapi::shared::windef::*;
@@ -49,7 +52,13 @@ fn to_u16<S: AsRef<str>>(s: S) -> Vec<u16> {
         .collect()
 }
 
-pub struct Display {}
+pub struct Display {
+    shared: Rc<DisplayShared>,
+}
+
+struct DisplayShared {
+    instance: Arc<gfx::Instance>,
+}
 
 impl Drop for Display {
     fn drop(&mut self) {}
@@ -64,7 +73,7 @@ impl super::Display for Display {
     }
 
     fn create_window(&self) -> Window {
-        Window::new()
+        Window::new(self.shared.clone())
     }
 
     fn collect_events(&self) {
@@ -76,11 +85,19 @@ impl super::Display for Display {
             }
         }
     }
+
+    fn instance(&self) -> Arc<gfx_back::Instance> {
+        self.shared.instance.clone()
+    }
 }
 
 impl Display {
     fn new() -> Display {
-        let display = Display {};
+        let display = Display {
+            shared: Rc::new(DisplayShared {
+                instance: Arc::new(gfx_back::Instance::create("ows-rs app", 0)),
+            })
+        };
         unsafe {
             display.register_window_class();
         }
@@ -116,6 +133,7 @@ pub struct Window {
     hwnd: HWND,
     title: String,
     saved_info: SavedInfo,
+    disp_shared: Rc<DisplayShared>,
     shared: Option<Box<WindowShared>>,
 }
 
@@ -129,7 +147,7 @@ struct SavedInfo {
 struct WindowShared {
     event_buf: Vec<window::Event>,
     event_comp: u32,
-    rect: RECT,
+    rect: IRect,
     state: window::State,
     mods: key::Mods,
     mouse_state: mouse::State,
@@ -141,21 +159,17 @@ const COMP_RESIZE: u32 = 1;
 const COMP_MOUSE_MOVE: u32 = 2;
 
 impl Window {
-    fn new() -> Window {
+    fn new(disp_shared: Rc<DisplayShared>) -> Window {
         Window {
             hwnd: ptr::null_mut(),
             title: String::new(),
             saved_info: SavedInfo {
-                rect: RECT {
-                    left: 0,
-                    top: 0,
-                    right: 0,
-                    bottom: 0,
-                },
+                rect: unsafe { mem::zeroed() },
                 maximized: false,
                 style: 0,
                 ex_style: 0,
             },
+            disp_shared,
             shared: None,
         }
     }
@@ -221,6 +235,12 @@ impl window::Window<Display> for Window {
                 SetWindowTextW(self.hwnd, tit.as_ptr());
             }
         }
+    }
+
+    fn size(&self) -> ISize {
+        assert!(!self.hwnd.is_null());
+        let r = unsafe { window_rect(self.hwnd) };
+        r.size()
     }
 
     fn show(&mut self, state: window::State) {
@@ -360,6 +380,17 @@ impl window::Window<Display> for Window {
             self.shared = None;
         }
     }
+
+    fn token(&self) -> window::Token {
+        assert!(!self.hwnd.is_null());
+        window::Token::new(self.hwnd as _)
+    }
+
+    fn create_surface(&self) -> gfx::Surface {
+        assert!(!self.hwnd.is_null());
+        let hinstance = unsafe { GetModuleHandleW(ptr::null_mut()) };
+        self.disp_shared.instance.create_surface_from_hwnd(hinstance as _, self.hwnd as _)
+    }
 }
 
 impl WindowShared {
@@ -385,30 +416,10 @@ impl WindowShared {
     }
 
     fn geom_change(&mut self, hwnd: HWND) -> bool {
-        let new_r = unsafe {
-            let style = get_window_long_ptr(hwnd, GWL_STYLE);
-            let ex_style = get_window_long_ptr(hwnd, GWL_EXSTYLE);
+        let new_r = unsafe { window_rect(hwnd) };
 
-            let mut wr: RECT = mem::uninitialized();
-            GetWindowRect(hwnd, &mut wr as *mut _);
-            let mut ar = RECT {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0,
-            };
-            AdjustWindowRectEx(&mut ar as *mut _, style as _, FALSE, ex_style as _);
-
-            wr.left -= ar.left;
-            wr.top -= ar.top;
-            wr.right -= ar.right;
-            wr.bottom -= ar.bottom;
-
-            wr
-        };
-
-        let new_s = rect_size(&new_r);
-        let old_s = rect_size(&self.rect);
+        let new_s = new_r.size();
+        let old_s = self.rect.size();
 
         self.rect = new_r;
 
@@ -610,6 +621,28 @@ unsafe fn peek_char_msg(hwnd: HWND) -> String {
     } else {
         String::new()
     }
+}
+
+unsafe fn window_rect(hwnd: HWND) -> IRect {
+    let style = get_window_long_ptr(hwnd, GWL_STYLE);
+    let ex_style = get_window_long_ptr(hwnd, GWL_EXSTYLE);
+
+    let mut wr: RECT = mem::uninitialized();
+    GetWindowRect(hwnd, &mut wr as *mut _);
+    let mut ar = RECT {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+    };
+    AdjustWindowRectEx(&mut ar as *mut _, style as _, FALSE, ex_style as _);
+
+    wr.left -= ar.left;
+    wr.top -= ar.top;
+    wr.right -= ar.right;
+    wr.bottom -= ar.bottom;
+
+    IRect::new(wr.left, wr.top, wr.right - wr.left, wr.bottom - wr.top)
 }
 
 unsafe fn key_mods() -> key::Mods {
