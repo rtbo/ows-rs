@@ -9,6 +9,8 @@ extern crate libc;
 extern crate wayland_client as wlc;
 #[cfg(unix)]
 extern crate wayland_protocols as wlp;
+#[cfg(unix)]
+extern crate xkbcommon;
 
 #[cfg(windows)]
 extern crate winapi;

@@ -8,7 +8,7 @@ use std::mem;
 use std::rc::Rc;
 use std::sync::Arc;
 use wlc::protocol::wl_compositor::{RequestsTrait as CompReqs, WlCompositor};
-use wlc::protocol::wl_keyboard::{self, WlKeyboard};
+use wlc::protocol::wl_keyboard::{WlKeyboard};
 use wlc::protocol::wl_pointer::{self, WlPointer};
 use wlc::protocol::wl_seat::{self, RequestsTrait as SeatReqs, WlSeat};
 use wlc::protocol::wl_surface::{RequestsTrait as SurfReqs, WlSurface};
@@ -16,6 +16,10 @@ use wlc::{ConnectError, EventQueue, GlobalManager, Proxy};
 use wlp::xdg_shell::client::xdg_surface::{self, RequestsTrait as XdgSurfReqs, XdgSurface};
 use wlp::xdg_shell::client::xdg_toplevel::{self, RequestsTrait as XdgTlReqs, XdgToplevel};
 use wlp::xdg_shell::client::xdg_wm_base::{self, RequestsTrait as XdgReqs, XdgWmBase};
+
+mod xkeyboard;
+
+use xkeyboard::{keyboard_event, XKeyboard};
 
 pub struct Display {
     queue: RefCell<EventQueue>,
@@ -29,11 +33,13 @@ pub struct DispInner {
     xdg_shell: Proxy<XdgWmBase>,
     pointer: RefCell<Option<Proxy<WlPointer>>>,
     keyboard: RefCell<Option<Proxy<WlKeyboard>>>,
+    xkb: RefCell<Option<XKeyboard>>,
     key_mods: Cell<key::Mods>,
     mouse_state: Cell<mouse::State>,
     instance: Arc<gfx_back::Instance>,
     windows: RefCell<Vec<Rc<WindowInner>>>,
     pointed_window: RefCell<Option<Rc<WindowInner>>>,
+    kbd_window: RefCell<Option<Rc<WindowInner>>>,
 }
 
 impl Drop for Display {
@@ -77,11 +83,13 @@ impl super::Display for Display {
             xdg_shell,
             pointer: RefCell::new(None),
             keyboard: RefCell::new(None),
+            xkb: RefCell::new(None),
             key_mods: Cell::new(key::Mods::empty()),
             mouse_state: Cell::new(mouse::State::empty()),
             instance: Arc::new(gfx_back::Instance::create("ows-rs wayland", 0)),
             windows: RefCell::new(Vec::new()),
             pointed_window: RefCell::new(None),
+            kbd_window: RefCell::new(None),
         });
 
         let queue_token = queue.get_token();
@@ -259,9 +267,6 @@ fn pointer_event(disp: &Rc<DispInner>, ev: wl_pointer::Event) {
         _ => {}
     }
 }
-
-fn keyboard_event(_disp: &Rc<DispInner>, _ev: wl_keyboard::Event) {}
-
 pub struct Window {
     inner: Rc<WindowInner>,
     disp_inner: Rc<DispInner>,

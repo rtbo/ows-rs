@@ -7,6 +7,7 @@ use ows::display::win32 as disp;
 
 use ows::display::Display;
 use ows::geom::IRect;
+use ows::key;
 use ows::render::{self, frame::Frame};
 use ows::window::{self, Window};
 
@@ -37,10 +38,17 @@ fn main() {
             println!("received event: {:?}", &ev);
             match ev {
                 window::Event::Close => {
-                    win.close();
                     tx.send(render::Msg::WindowClose(token)).unwrap();
+                    win.close();
                     break 'main;
-                },
+                }
+                window::Event::KeyDown(sym, _, _, _) => {
+                    if sym == key::Sym::Escape {
+                        tx.send(render::Msg::WindowClose(token)).unwrap();
+                        win.close();
+                        break 'main;
+                    }
+                }
                 _ => {}
             }
         }
@@ -48,4 +56,5 @@ fn main() {
             token, IRect::new(0, 0, 640, 480), Some([0.8f32, 0.5f32, 0.6f32, 1f32])
         ))).unwrap();
     }
+    tx.send(render::Msg::Exit).unwrap();
 }
