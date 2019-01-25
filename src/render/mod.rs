@@ -1,33 +1,30 @@
-use crate::geom::ISize;
 use crate::gfx;
-use crate::window;
 use gfx_hal::{
     self as hal, Device, Instance, PhysicalDevice, QueueFamily, Surface, Swapchain,
 };
 use hal::{format::Format};
-use std::cell::RefCell;
-use std::rc::Rc;
+use winit::{WindowId, dpi::PhysicalSize};
 use std::sync::{mpsc, Arc};
 
 pub mod frame;
 
 pub enum Msg {
     WindowOpen(WindowInfo),
-    WindowClose(window::Token),
+    WindowClose(WindowId),
     Frame(frame::Frame),
     Frames(Vec<frame::Frame>),
     Exit,
 }
 
 pub struct WindowInfo {
-    token: window::Token,
-    size: ISize,
+    id: WindowId,
+    size: PhysicalSize,
     surf: gfx::Surface,
 }
 
 impl WindowInfo {
-    pub fn new(token: window::Token, size: ISize, surf: gfx::Surface) -> WindowInfo {
-        WindowInfo { token, size, surf }
+    pub fn new(id: WindowId, size: PhysicalSize, surf: gfx::Surface) -> WindowInfo {
+        WindowInfo { id, size, surf }
     }
 }
 
@@ -42,8 +39,8 @@ pub fn render_loop(
             Msg::WindowOpen(info) => {
                 renderer.window_open(info);
             }
-            Msg::WindowClose(tok) => {
-                renderer.window_close(tok);
+            Msg::WindowClose(id) => {
+                renderer.window_close(id);
             }
             Msg::Frame(frame) => {
                 renderer.frame(frame);
@@ -54,15 +51,16 @@ pub fn render_loop(
             }
         }
     }
+    renderer.destroy();
 }
 
 struct Renderer {
-    _instance: Arc<gfx::Instance>,
     physical_device: gfx::PhysicalDevice,
     device: gfx::Device,
     queues: gfx::QueueGroup,
     _memory_props: hal::MemoryProperties,
     windows: Vec<Window>,
+    instance: Arc<gfx::Instance>,
 }
 
 impl Renderer {
@@ -94,12 +92,12 @@ impl Renderer {
         let physical_device = adapter.physical_device;
         let memory_props = physical_device.memory_properties();
         let mut renderer = Renderer {
-            _instance: instance,
             physical_device,
             device,
             queues,
             _memory_props: memory_props,
             windows: Vec::with_capacity(windows.len()),
+            instance,
         };
         renderer.windows = windows
             .into_iter()
@@ -107,15 +105,27 @@ impl Renderer {
             .collect();
         renderer
     }
+
+    fn destroy(self) {
+        self.device.wait_idle().unwrap();
+        for w in self.windows.into_iter() {
+            w.destroy(&self.device);
+        }
+        std::mem::drop(self.queues);
+        std::mem::drop(self.device);
+    }
+
     fn window_open(&mut self, info: WindowInfo) {
         self.windows.push(Window::new(info, self));
     }
-    fn window_close(&mut self, _tok: window::Token) {}
+
+    fn window_close(&mut self, _id: WindowId) {}
+
     fn frame(&mut self, frame: frame::Frame) {
-        let mut w = self
+        let w = self
             .windows
             .iter_mut()
-            .find(|w| w.token == frame.window)
+            .find(|w| w.id == frame.window)
             .expect("Frame sent to render thread with an unknown window token");
 
         let idx = unsafe {
@@ -175,32 +185,29 @@ impl Renderer {
 }
 
 struct Window {
-    token: window::Token,
-    _size: ISize,
+    id: WindowId,
+    _size: (u32, u32),
     _surf: gfx::Surface,
     swapchain: gfx::Swapchain,
     image_avail: gfx::Semaphore,
     render_done: gfx::Semaphore,
+    pool: gfx::CommandPool,
     images: Vec<ImageData>,
     must_rebuild: bool,
 }
 
 struct ImageData {
     image: gfx::Image,
-    _pool: Rc<RefCell<gfx::CommandPool>>,
     cmd: gfx::CommandBuffer,
     fence: gfx::Fence,
 }
 
 impl ImageData {
-    fn new(image: gfx::Image, pool: Rc<RefCell<gfx::CommandPool>>, dev: &gfx::Device) -> ImageData {
-        let cmd = pool.borrow_mut().acquire_command_buffer();
-        let fence = dev.create_fence(true).unwrap();
+    fn new(image: gfx::Image, pool: &mut gfx::CommandPool, dev: &gfx::Device) -> ImageData {
         ImageData {
             image,
-            _pool: pool,
-            cmd,
-            fence,
+            cmd: pool.acquire_command_buffer(),
+            fence: dev.create_fence(true).unwrap(),
         }
     }
 }
@@ -212,29 +219,41 @@ impl Window {
         let queues = &renderer.queues;
 
         let (swapchain, images) = build_swapchain(&mut info, pd, dev, None);
-        let pool = Rc::new(RefCell::new(
-            unsafe {
+        let mut pool = unsafe {
                 dev.create_command_pool_typed(
                     &queues,
                     hal::pool::CommandPoolCreateFlags::RESET_INDIVIDUAL,
                 )
             }
-            .expect("could not create a command pool"),
-        ));
+            .expect("could not create a command pool");
         let images = images
             .into_iter()
-            .map(|i| ImageData::new(i, pool.clone(), dev))
+            .map(|i| ImageData::new(i, &mut pool, dev))
             .collect();
 
         Window {
-            token: info.token,
-            _size: info.size,
+            id: info.id,
+            _size: info.size.into(),
             _surf: info.surf,
             swapchain,
             image_avail: dev.create_semaphore().unwrap(),
             render_done: dev.create_semaphore().unwrap(),
+            pool,
             images,
             must_rebuild: false,
+        }
+    }
+
+    fn destroy(mut self, dev: &gfx::Device) {
+        unsafe {
+            dev.destroy_semaphore(self.image_avail);
+            dev.destroy_semaphore(self.render_done);
+            dev.destroy_swapchain(self.swapchain);
+            for ImageData{cmd, fence, ..} in self.images.into_iter() {
+                self.pool.free(Some(cmd));
+                dev.destroy_fence(fence);
+            }
+            dev.destroy_command_pool(self.pool.into_raw());
         }
     }
 }
@@ -288,12 +307,12 @@ fn build_swapchain(
         .find(|&&pm| pm == hal::PresentMode::Fifo)
         .is_some());
     let present_mode = hal::PresentMode::Fifo;
-    let size = info.size;
-    let mut config = hal::SwapchainConfig::new(size.w as u32, size.h as u32, format, image_count)
+    let size: (u32, u32) = info.size.into();
+    let mut config = hal::SwapchainConfig::new(size.0, size.1, format, image_count)
         .with_mode(present_mode)
         .with_image_usage(usage);
     config.composite_alpha = find_surf_comp_alpha(comp_alpha);
-    println!("Creating swapchain {}x{}", size.w, size.h);
+    println!("Creating swapchain {}x{}", size.0, size.1);
     let (swapchain, backbuffer) = unsafe { dev.create_swapchain(&mut info.surf, config, old) }
         .expect("Can't create swapchain");
     let images = {

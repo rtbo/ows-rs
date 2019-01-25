@@ -1,60 +1,60 @@
-
 extern crate ows;
-#[cfg(unix)]
-use ows::display::wayland as disp;
-#[cfg(windows)]
-use ows::display::win32 as disp;
+extern crate winit;
 
-use ows::display::Display;
 use ows::geom::IRect;
-use ows::key;
+use ows::gfx;
 use ows::render::{self, frame::Frame};
-use ows::window::{self, Window};
 
+use std::sync::{mpsc, Arc};
 use std::thread;
-use std::sync::mpsc;
 
 fn main() {
-    let dpy = disp::Display::open().expect("could not open display");
-    let mut win = dpy.create_window();
+    let mut events_loop = winit::EventsLoop::new();
 
-    win.set_title(String::from("Hello, Ows!"));
+    let window = winit::WindowBuilder::new()
+        .with_title("A fantastic window!")
+        .build(&events_loop)
+        .unwrap();
 
-    win.show(window::State::Normal(Some((640, 480))));
-
-    let token = win.token();
+    let instance = gfx::Instance::create("hello", 0);
+    let surface = instance.create_surface(&window);
+    let size = window
+        .get_inner_size()
+        .map(|s| s.to_physical(window.get_hidpi_factor()))
+        .unwrap();
 
     // spawn the render thread
-    let inst = dpy.instance();
-    let rwins = vec![ render::WindowInfo::new(token, win.size(), win.create_surface()) ];
+    let rwins = vec![render::WindowInfo::new(window.id(), size, surface)];
+
     let (tx, rx) = mpsc::sync_channel::<render::Msg>(1);
-    thread::spawn(move || {
-        render::render_loop(inst, rwins, rx);
+    let jh = thread::spawn(move || {
+        render::render_loop(Arc::new(instance), rwins, rx);
     });
 
-    'main: loop {
-        dpy.collect_events();
-        for ev in win.retrieve_events() {
-            println!("received event: {:?}", &ev);
-            match ev {
-                window::Event::Close => {
-                    tx.send(render::Msg::WindowClose(token)).unwrap();
-                    win.close();
-                    break 'main;
-                }
-                window::Event::KeyDown(sym, _, _, _) => {
-                    if sym == key::Sym::Escape {
-                        tx.send(render::Msg::WindowClose(token)).unwrap();
-                        win.close();
-                        break 'main;
-                    }
-                }
-                _ => {}
-            }
-        }
+    events_loop.run_forever(|event| {
+        println!("received event: {:?}", event);
+
+        let size: (u32, u32) = window
+            .get_inner_size()
+            .map(|s| s.to_physical(window.get_hidpi_factor()))
+            .unwrap()
+            .into();
+
         tx.send(render::Msg::Frame(Frame::new(
-            token, IRect::new(0, 0, 640, 480), Some([0.8f32, 0.5f32, 0.6f32, 1f32])
-        ))).unwrap();
-    }
+            window.id(),
+            IRect::new(0, 0, size.0 as _, size.1 as _),
+            Some([0.8f32, 0.5f32, 0.6f32, 1f32]),
+        )))
+        .unwrap();
+
+        match event {
+            winit::Event::WindowEvent { event: winit::WindowEvent::CloseRequested, .. } => {
+                winit::ControlFlow::Break
+            }
+            _ => winit::ControlFlow::Continue,
+        }
+    });
     tx.send(render::Msg::Exit).unwrap();
+    jh.join().unwrap();
+
 }
