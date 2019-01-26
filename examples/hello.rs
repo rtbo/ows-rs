@@ -1,32 +1,44 @@
-#[macro_use]
 extern crate ows;
+extern crate winit;
 
-use ows::{window, Window};
+use ows::geom::IRect;
+use ows::render;
+
 
 fn main() {
-    let p = ows::default_platform()
-        .expect("could not create platform");
+    let mut events_loop = winit::EventsLoop::new();
 
-    let mut attempts = 0;
+    let window = winit::WindowBuilder::new()
+        .with_title("A fantastic window!")
+        .with_dimensions(winit::dpi::LogicalSize::new(640 as _, 480 as _))
+        .build(&events_loop)
+        .unwrap();
 
-    let _w = Window::new()
-        .title("Hello, World!".to_string())
-        .on_close(move |_| {
-            attempts += 1;
-            let comment = if attempts == 2 {"I'm done!"} else {"Try again!"};
-            println!("closing attempt n°{}. {}", attempts, comment);
-            attempts == 2
-        })
-        .on_resize(|mut w, s| {
-            w.set_title(format!("Hello, World; new size: {:?}", s));
-        })
-        .on_move(|_, p| println!("pos: {:?}", p))
-        .on_show(|_| println!("show"))
-        .on_hide(|_| println!("hide"))
-        .on_enter(|_, p| println!("enter {:?}", p))
-        .on_leave(|_, p| println!("leave {:?}", p))
-        .state(window::State::Normal)
-        .done(&p);
+    let render_thread = render::Thread::new(Some(&window));
 
-    std::process::exit(p.loop_events());
+    // spawn the render thread
+    events_loop.run_forever(|event| {
+        println!("received event: {:?}", event);
+
+        let size: (u32, u32) = window
+            .get_inner_size()
+            .map(|s| s.to_physical(window.get_hidpi_factor()))
+            .unwrap()
+            .into();
+
+        render_thread.frame(render::Frame::new(
+            window.id(),
+            IRect::new(0, 0, size.0 as _, size.1 as _),
+            Some([0.8f32, 0.5f32, 0.6f32, 1f32]),
+        ));
+
+        match event {
+            winit::Event::WindowEvent { event: winit::WindowEvent::CloseRequested, .. } => {
+                winit::ControlFlow::Break
+            }
+            _ => winit::ControlFlow::Continue,
+        }
+    });
+
+    render_thread.stop();
 }
