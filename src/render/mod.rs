@@ -1,46 +1,122 @@
 use crate::gfx;
-use gfx_hal::{
-    self as hal, Device, Instance, PhysicalDevice, QueueFamily, Surface, Swapchain,
-};
-use hal::{format::Format};
-use winit::{WindowId, dpi::PhysicalSize};
+use gfx_hal::{self as hal, Device, Instance, PhysicalDevice, QueueFamily, Surface, Swapchain};
+use hal::format::Format;
+use std::borrow::Borrow;
 use std::sync::{mpsc, Arc};
+use std::thread;
+use winit::{self, dpi::PhysicalSize, WindowId};
 
-pub mod frame;
+mod frame;
 
-pub enum Msg {
-    WindowOpen(WindowInfo),
-    WindowClose(WindowId),
+pub use frame::Frame;
+
+pub struct Thread {
+    instance: Arc<gfx::Instance>,
+    tx: mpsc::SyncSender<Msg>,
+    join_handle: thread::JoinHandle<()>,
+}
+
+impl Thread {
+    pub fn new<Ws>(windows: Ws) -> Thread
+    where
+        Ws: IntoIterator,
+        Ws::Item: Borrow<winit::Window>,
+    {
+        let instance = Arc::new(gfx::Instance::create("ows-rs", 0));
+        let windows = windows
+            .into_iter()
+            .map(|w| {
+                let w = w.borrow();
+                let size = w
+                    .get_inner_size()
+                    .map(|s| s.to_physical(w.get_hidpi_factor()))
+                    .expect("only active window can be sent to render thread");
+                WindowInfo {
+                    id: w.id(),
+                    size,
+                    surf: instance.create_surface(&w),
+                }
+            })
+            .collect();
+
+        let instance2 = instance.clone();
+        let (tx, rx) = mpsc::sync_channel::<Msg>(1);
+        let join_handle = thread::spawn(move || {
+            render_loop(instance2, windows, rx);
+        });
+        Thread {
+            instance,
+            tx,
+            join_handle,
+        }
+    }
+
+    pub fn add_window(&self, window: &winit::Window) {
+        let size = window
+            .get_inner_size()
+            .map(|s| s.to_physical(window.get_hidpi_factor()))
+            .expect("only active window can be sent to render thread");
+        let info = WindowInfo {
+            id: window.id(),
+            size,
+            surf: self.instance.create_surface(&window),
+        };
+        self.tx
+            .send(Msg::WindowAdd(info))
+            .expect("Could not send new window to render thread");
+    }
+
+    pub fn remove_window(&self, id: WindowId) {
+        self.tx
+            .send(Msg::WindowRemove(id))
+            .expect("Could not remove window from render thread");
+    }
+
+    pub fn frame(&self, frame: Frame) {
+        self.tx
+            .send(Msg::Frame(frame))
+            .expect("Could not send frame to render thread");
+    }
+
+    pub fn frames(&self, frames: Vec<Frame>) {
+        self.tx
+            .send(Msg::Frames(frames))
+            .expect("Could not send frames to render thread");
+    }
+
+    pub fn stop(self) {
+        self.tx
+            .send(Msg::Exit)
+            .expect("Could not send exit message to render thread");
+        self.join_handle
+            .join()
+            .expect("Could not join the render thread");
+    }
+}
+
+enum Msg {
+    WindowAdd(WindowInfo),
+    WindowRemove(WindowId),
     Frame(frame::Frame),
     Frames(Vec<frame::Frame>),
     Exit,
 }
 
-pub struct WindowInfo {
+struct WindowInfo {
     id: WindowId,
     size: PhysicalSize,
     surf: gfx::Surface,
 }
 
-impl WindowInfo {
-    pub fn new(id: WindowId, size: PhysicalSize, surf: gfx::Surface) -> WindowInfo {
-        WindowInfo { id, size, surf }
-    }
-}
-
-pub fn render_loop(
-    instance: Arc<gfx::Instance>,
-    windows: Vec<WindowInfo>,
-    rx: mpsc::Receiver<Msg>,
-) {
+fn render_loop(instance: Arc<gfx::Instance>, windows: Vec<WindowInfo>, rx: mpsc::Receiver<Msg>) {
     let mut renderer = Renderer::new(instance, windows);
     for msg in rx {
         match msg {
-            Msg::WindowOpen(info) => {
-                renderer.window_open(info);
+            Msg::WindowAdd(info) => {
+                renderer.window_add(info);
             }
-            Msg::WindowClose(id) => {
-                renderer.window_close(id);
+            Msg::WindowRemove(id) => {
+                renderer.window_remove(id);
             }
             Msg::Frame(frame) => {
                 renderer.frame(frame);
@@ -60,7 +136,6 @@ struct Renderer {
     queues: gfx::QueueGroup,
     _memory_props: hal::MemoryProperties,
     windows: Vec<Window>,
-    instance: Arc<gfx::Instance>,
 }
 
 impl Renderer {
@@ -97,7 +172,6 @@ impl Renderer {
             queues,
             _memory_props: memory_props,
             windows: Vec::with_capacity(windows.len()),
-            instance,
         };
         renderer.windows = windows
             .into_iter()
@@ -115,11 +189,11 @@ impl Renderer {
         std::mem::drop(self.device);
     }
 
-    fn window_open(&mut self, info: WindowInfo) {
+    fn window_add(&mut self, info: WindowInfo) {
         self.windows.push(Window::new(info, self));
     }
 
-    fn window_close(&mut self, _id: WindowId) {}
+    fn window_remove(&mut self, _id: WindowId) {}
 
     fn frame(&mut self, frame: frame::Frame) {
         let w = self
@@ -149,7 +223,7 @@ impl Renderer {
                 self.device.reset_fence(&image.fence).unwrap();
                 cmd.begin();
 
-                let subrange = hal::image::SubresourceRange{
+                let subrange = hal::image::SubresourceRange {
                     aspects: hal::format::Aspects::COLOR,
                     levels: 0..1,
                     layers: 0..1,
@@ -161,13 +235,13 @@ impl Renderer {
                         hal::image::Layout::TransferDstOptimal,
                         hal::command::ClearColor::Float(cc),
                         hal::command::ClearDepthStencil(0f32, 0),
-                        &[ subrange ],
+                        &[subrange],
                     );
                 }
 
                 cmd.finish();
 
-                let submission = hal::Submission{
+                let submission = hal::Submission {
                     command_buffers: Some(&*cmd),
                     wait_semaphores: Some((&w.image_avail, hal::pso::PipelineStage::TRANSFER)),
                     signal_semaphores: Some(&w.render_done),
@@ -175,10 +249,12 @@ impl Renderer {
 
                 self.queues.queues[0].submit(submission, Some(&image.fence));
 
-                if let Err(_) = w.swapchain.present(&mut self.queues.queues[0], idx, Some(&w.render_done)) {
+                if let Err(_) =
+                    w.swapchain
+                        .present(&mut self.queues.queues[0], idx, Some(&w.render_done))
+                {
                     w.must_rebuild = true;
                 }
-
             },
         }
     }
@@ -220,12 +296,12 @@ impl Window {
 
         let (swapchain, images) = build_swapchain(&mut info, pd, dev, None);
         let mut pool = unsafe {
-                dev.create_command_pool_typed(
-                    &queues,
-                    hal::pool::CommandPoolCreateFlags::RESET_INDIVIDUAL,
-                )
-            }
-            .expect("could not create a command pool");
+            dev.create_command_pool_typed(
+                &queues,
+                hal::pool::CommandPoolCreateFlags::RESET_INDIVIDUAL,
+            )
+        }
+        .expect("could not create a command pool");
         let images = images
             .into_iter()
             .map(|i| ImageData::new(i, &mut pool, dev))
@@ -249,7 +325,7 @@ impl Window {
             dev.destroy_semaphore(self.image_avail);
             dev.destroy_semaphore(self.render_done);
             dev.destroy_swapchain(self.swapchain);
-            for ImageData{cmd, fence, ..} in self.images.into_iter() {
+            for ImageData { cmd, fence, .. } in self.images.into_iter() {
                 self.pool.free(Some(cmd));
                 dev.destroy_fence(fence);
             }
